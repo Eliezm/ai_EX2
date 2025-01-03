@@ -58,23 +58,45 @@ class GringottsController:
         print(f"Turn {self.turn_count}: Current Trap Beliefs: {self.Trap_beliefs}")
         print(f"Turn {self.turn_count}: Current Dragon Beliefs: {self.Dragon_beliefs}")
 
-        # 3) If we are on a Vault, try to collect (assuming not yet collected from it)
-        r, c = self.harry_loc
-        if self.Vault_beliefs[r][c] is True:
-            # It's definitely a Vault
-            if self.harry_loc not in self.collected_wrong_vaults:
-                action = ("collect",)
-                print(f"Turn {self.turn_count}: Action selected: {action}")
-                return action
+        # 3) Identify all definite Vaults
+        definite_vaults = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs[r][c] is True:
+                    definite_vaults.append((r, c))
 
-        # 4) If there's a known Trap adjacent, let's destroy it
+        # 4) If we are on a Vault, try to collect it
+        if (self.harry_loc in definite_vaults) and (self.harry_loc not in self.collected_wrong_vaults):
+            action = ("collect",)
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            return action
+
+        # 5) If any definite Vault exists and we are not on it, re-plan path to it
+        if definite_vaults:
+            # For simplicity, choose the first definite Vault found
+            target_vault = definite_vaults[0]
+
+            # Plan a path to the target Vault
+            path = self.bfs_path(self.harry_loc, target_vault)
+
+            if path and path != [self.harry_loc]:
+                # Convert the path to a series of "move" actions
+                moves = []
+                current = self.harry_loc
+                for step in path:
+                    if step != current:
+                        moves.append(("move", step))
+                        current = step
+                self.current_plan = deque(moves)
+
+        # 6) If there's a known Trap adjacent, let's destroy it
         destroy_target = self.find_adjacent_definite_trap()
         if destroy_target:
             action = ("destroy", destroy_target)
             print(f"Turn {self.turn_count}: Action selected: {action}")
             return action
 
-        # 5) If there's a planned action from previous turns, execute it
+        # 7) If there's a planned action from previous turns, execute it
         if self.current_plan:
             action = self.current_plan.popleft()
             print(f"Turn {self.turn_count}: Action selected: {action}")
@@ -84,7 +106,7 @@ class GringottsController:
                 self.visited.add(action[1])  # Mark the new cell as visited
             return action
 
-        # 6) Plan a path to a goal (Vault or safe cell)
+        # 8) Plan a path to a goal (Vault or safe cell)
         path = self.plan_path_to_goal()
         if not path:
             # If no path found, perform a "wait" as a fallback
@@ -191,7 +213,14 @@ class GringottsController:
                     cells_to_assign.append(("Vault", r, c))
 
         solutions = []
-        max_solutions = 100  # Limit to prevent excessive computation
+        num_uncertain = len(cells_to_assign)
+        if num_uncertain <= 5:
+            max_solutions = 1000
+        elif num_uncertain <= 10:
+            max_solutions = 500
+        else:
+            max_solutions = 200
+
         self.dpll_backtrack(partial_solution, cells_to_assign, 0, solutions, max_solutions)
 
         if not solutions:
@@ -280,6 +309,30 @@ class GringottsController:
                 # No Traps
                 if trap_sum > 0:
                     return False
+
+        # 3) Exactly one Vault exists
+        vault_count = 0
+        for r in range(self.rows):
+            for c in range(self.cols):
+                vval = partial_sol.get(("Vault", r, c), None)
+                if vval is True:
+                    vault_count += 1
+                elif vval is None:
+                    pass  # Potential Vault
+
+        if vault_count > 1:
+            return False  # More than one Vault is invalid
+
+        # Additionally, if all cells are assigned and no Vault is present, invalidate
+        if vault_count == 0:
+            all_assigned = True
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Vault_beliefs[r][c] is None:
+                        all_assigned = False
+                        break
+            if all_assigned:
+                return False  # At least one Vault must exist
 
         return True
 
