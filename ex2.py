@@ -213,14 +213,7 @@ class GringottsController:
                     cells_to_assign.append(("Vault", r, c))
 
         solutions = []
-        num_uncertain = len(cells_to_assign)
-        if num_uncertain <= 5:
-            max_solutions = 1000
-        elif num_uncertain <= 10:
-            max_solutions = 500
-        else:
-            max_solutions = 200
-
+        max_solutions = 100  # Limit to prevent excessive computation
         self.dpll_backtrack(partial_solution, cells_to_assign, 0, solutions, max_solutions)
 
         if not solutions:
