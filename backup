@@ -2263,3 +2263,13583 @@ inputs = [
 
 ]
 
+lectures and tutorials:
+1. "Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Introduction to AI
+Informed State-space Search
+Reshef Meir
+Slides by Carmel Domshlak
+DD&S — Technion
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Heuristic search algorithms: systematic
+Heuristic search algorithms are the most common and
+overall most successful algorithms for deterministic
+planning.
+Popular systematic heuristic search algorithms:
+greedy best-first search
+A
+∗
+weighted A∗
+IDA∗
+depth-first branch-and-bound search
+breadth-first heuristic search
+. . .
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Heuristic search algorithms: local
+Heuristic search algorithms are the most common and
+overall most successful algorithms for deterministic
+planning.
+Popular heuristic local search algorithms:
+hill-climbing
+enforced hill-climbing
+beam search
+tabu search
+genetic algorithms
+simulated annealing
+. . .
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Heuristic search: idea
+goal init distance estimate distance estimate distance estimate distance estimate
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Required ingredients for heuristic search
+A heuristic search algorithm requires one more operation
+in addition to the definition of a search space.
+Definition (heuristic function)
+Let Σ be the set of nodes of a given search space.
+A heuristic function or heuristic (for that search space) is a
+function h : Σ → N0 ∪ {∞}.
+The value h(σ) supposed to estimate the distance from
+node σ to the nearest goal node.
+Typically: h(σ)
+def = h(state(σ))
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+What exactly is a heuristic estimate?
+What does it mean that h “estimates the goal distance”?
+For most heuristic search algorithms, h does not need to
+have any strong properties for the algorithm to ‘work’ (=
+return a correct solution).
+However, the efficiency of the algorithm closely relates to
+how accurately h reflects the actual goal distance.
+For some algorithms, like A∗
+, we can prove strong formal
+relationships between properties of h and properties of the
+algorithm (optimality, dominance, run-time for bounded
+error, . . . )
+For other search algorithms, “it works well in practice” is
+often as good an analysis as one gets.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Perfect heuristic
+Let Σ be the set of nodes of a given search space.
+Definition (optimal/perfect heuristic)
+The optimal or perfect heuristic of a search space is the
+heuristic h
+∗ which maps each search node σ to the length of a
+shortest path from state(σ) to any goal state.
+Note: h
+∗
+(σ) = ∞ iff no goal state is reachable from σ.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Properties of heuristics
+A heuristic h is called
+safe if for all σ ∈ Σ, h(σ) = ∞ implies h
+∗
+(σ) = ∞
+goal-aware if h(σ) = 0 for all goal nodes σ ∈ Σ
+admissible if h(σ) ≤ h
+∗
+(σ) for all nodes σ ∈ Σ
+consistent if h(σ) ≤ h(σ
+′
+) + cost(σ, σ′
+)
+for all nodes σ, σ′ ∈ Σ such that σ
+′
+is a successor of σ
+(limited Triangle Inequality)
+Examples (h
+∗
+is driving distance):
+h(σ) ≡ 0
+h(σ) is Euclidean Distance to goal
+h(σ) is real driving distance if going via Sibiu
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Properties of heuristics
+A heuristic h is called
+safe if for all σ ∈ Σ, h(σ) = ∞ implies h
+∗
+(σ) = ∞
+goal-aware if h(σ) = 0 for all goal nodes σ ∈ Σ
+admissible if h(σ) ≤ h
+∗
+(σ) for all nodes σ ∈ Σ
+consistent if h(σ) ≤ h(σ
+′
+) + cost(σ, σ′
+)
+for all nodes σ, σ′ ∈ Σ such that σ
+′
+is a successor of σ
+(limited Triangle Inequality)
+Examples (h
+∗
+is driving distance):
+h(σ) ≡ 0
+h(σ) is Euclidean Distance to goal
+h(σ) is real driving distance if going via Sibiu
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Greedy best-first search
+Greedy best-first search (with duplicate detection)
+open := new min-heap ordered by
+(
+σ
+7→
+h
+(
+σ))
+open
+.insert
+(make-root-node
+(init()))
+closed :=
+∅
+while not open
+.empty(): σ = open.pop-min()
+if state
+(
+σ
+)
+∈/ closed:
+closed := closed ∪ {state
+(
+σ
+)
+}
+if is-goal
+(state
+(
+σ)):
+return extract-solution
+(
+σ
+)
+for each
+⟨o, s⟩ ∈ succ
+(state
+(
+σ)): σ′
+:= make-node
+(σ, o, s
+)
+if
+h
+(
+σ
+′
+)
+<
+∞:
+open
+.insert
+(
+σ
+′
+)
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Planning trip to Bucharest with SLD heuristic
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+GBFS by example
+Rimnicu Vilcea
+Zerind
+Arad
+Sibiu
+Arad Fagaras Oradea
+Timisoara
+Sibiu Bucharest
+329 374
+366 380 193
+253 0
+Rimnicu Vilcea
+Zerind
+Arad
+Sibiu
+Arad Fagaras Oradea
+Timisoara
+329 374
+366 176 380 193
+Zerind
+Arad
+Sibiu Timisoara
+253 329 374
+Arad
+366
+(a) The initial state
+(b) After expanding Arad
+(c) After expanding Sibiu
+(d) After expanding Fagaras
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Properties of greedy best-first search
+one of the three most commonly used algorithms for
+satisficing planning
+complete for safe heuristics (due to duplicate detection)
+suboptimal unless h satisfies some very strong
+assumptions (similar to being perfect)
+invariant under all strictly monotonic transformations of h
+(e. g., scaling with a positive constant or adding a
+constant)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+A
+∗
+A
+∗
+(with duplicate detection and reopening)
+open := new min-heap ordered by (σ 7→ f(σ) = g(σ) + h(σ))
+open.insert(make-root-node(init()))
+closed := ∅
+distance := ∅
+while not open.empty():
+σ = open.pop-min()
+if state(σ) ∈/ closed or g(σ) < distance(state(σ)):
+closed := closed ∪ {state(σ)}
+distance(state(σ)) := g(σ)
+if is-goal(state(σ)):
+return extract-solution(σ)
+for each ⟨o, s⟩ ∈ succ(state(σ)):
+σ
+′
+:= make-node(σ, o, s)
+if h(σ
+′
+) < ∞:
+open.insert(σ
+′
+)
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+A
+∗
+(one node maintained per state)
+A
+∗
+(with duplicate detection and reopening)
+open := new min-set-heap ordered by (σ 7→ f(σ) = g(σ) + h(σ))
+open.insert(make-root-node(init()))
+closed := ∅
+distance := ∅
+while not open.empty():
+σ = open.pop-min()
+if state(σ) ∈/ closed or g(σ) < distance(state(σ)):
+closed := closed ∪ {state(σ)}
+distance(state(σ)) := g(σ)
+if is-goal(state(σ)):
+return extract-solution(σ)
+for each ⟨o, s⟩ ∈ succ(state(σ)):
+σ
+′
+:= make-node(σ, o, s)
+if h(σ
+′
+) < ∞:
+open.insert(σ
+′
+) // override other nodes of s
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+A
+∗ by example
+(a) The initial state
+(b) After expanding Arad
+(c) After expanding Sibiu
+Zerind
+Arad
+Sibiu Timisoara
+393=140+253 447=118+329 449=75+374
+Arad
+366=0+366
+(d) After expanding Rimnicu Vilcea
+Zerind
+Arad
+Sibiu
+Arad
+Timisoara
+Fagaras Oradea Rimnicu Vilcea
+447=118+329 449=75+374
+646=280+366 413=220+193 415=239+176 671=291+380
+Zerind
+Arad
+Sibiu
+Arad
+Timisoara
+Fagaras Oradea
+447=118+329 449=75+374
+646=280+366 415=239+176
+Rimnicu Vilcea
+Craiova Pitesti Sibiu
+526=366+160 417=317+100 553=300+253
+671=291+380
+
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+A
+∗ by example
+Zerind
+Arad
+Sibiu
+Arad
+Timisoara
+Sibiu Bucharest
+Fagaras Oradea Rimnicu Vilcea
+Craiova Pitesti Sibiu
+Bucharest Craiova Rimnicu Vilcea
+418=418+0
+447=118+329 449=75+374
+646=280+366
+591=338+253 450=450+0 526=366+160 553=300+253
+615=455+160 607=414+193
+671=291+380
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Properties of A∗
+the most commonly used algorithm for optimal planning
+rarely used for satisficing planning
+complete for safe heuristics
+(even without duplicate detection)
+optimal for admissible heuristics
+even h ≡ 0?
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Optimality of Tree-Search A∗ with Admissible h
+Standard proof
+Theorem
+A∗ with an admissible heuristic returns an optimal path.
+Proof.
+For any node σ, we denote by path(σ) the path from the root node to σ.
+Suppose to the contrary that the algorithm returns a suboptimal plan via
+extract-solution(ˆσ) for some node σˆ with state(ˆσ) = G (the path path(ˆσ) is
+marked in blue arrows in the figure, and the state of every node appears as an
+orange square).
+Consider an arbitrary optimal solution path(σ
+∗) (marked by red arrows). Clearly
+the final node has state(σ
+∗) = G.
+We now consider the last step of the A∗algorithm run, when node σˆ was opened.
+Consider all the nodes in the priority-queue at the beginning of this step (marked
+by light blue in the figure).
+We note that σˆ is in the queue (since indeed it was selected by the algorithm).
+Let σ
+′ be the first node on the optimal path that is not part path(ˆσ), then σ
+′
+is
+also in the queue since it is a child of some node in path(ˆσ).
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Proof (cont.)
+We argue that A∗ was supposed to open σ
+′ before σˆ. Indeed:
+f(ˆσ) = g(ˆσ) + h(ˆσ) = g(ˆσ) (since state(ˆσ) = G)
+> g(σ
+∗
+) (since path(σ
+∗
+) is optimal and path(ˆσ) is not)
+= g(σ
+′
+) + h
+∗
+(σ
+′
+) (we break the red path into parts)
+≥ g(σ
+′
+) + h(σ
+′
+) = f(σ
+′
+) (h is admissible)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Weighted A∗
+Weighted A∗
+(with duplicate detection and reopening)
+open := new min-heap ordered by (σ 7→ g(σ) + W · h(σ))
+open.insert(make-root-node(init()))
+closed := ∅
+distance := ∅
+while not open.empty():
+σ = open.pop-min()
+if state(σ) ∈/ closed or g(σ) < distance(state(σ)):
+closed := closed ∪ {state(σ)}
+distance(σ) := g(σ)
+if is-goal(state(σ)):
+return extract-solution(σ)
+for each ⟨o, s⟩ ∈ succ(state(σ)):
+σ
+′
+:= make-node(σ, o, s)
+if h(σ
+′
+) < ∞:
+open.insert(σ
+′
+)
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Properties of weighted A∗
+The weight W ∈ R
++
+0
+is a parameter of the algorithm.
+for W = 0, behaves like breadth-first search
+for W = 1, behaves like A∗
+for W → ∞, behaves like greedy best-first search
+Properties:
+one of the three most commonly used algorithms for
+satisficing planning
+for W > 1, can prove similar properties to A∗
+, replacing
+optimal with bounded suboptimal: generated solutions are
+at most a factor W as long as optimal ones
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Hill-climbing
+Hill-climbing
+σ := make-root-node(init())
+forever:
+if is-goal(state(σ)):
+return extract-solution(σ)
+Σ
+′
+:= { make-node(σ, o, s) | ⟨o, s⟩ ∈ succ(state(σ)) }
+σ := an element of Σ
+′ minimizing h (random tie breaking)
+can easily get stuck in local minima where immediate
+improvements of h(σ) are not possible
+many variations: tie-breaking strategies, restarts
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Enforced hill-climbing
+Enforced hill-climbing: procedure improve
+def improve(σ0):
+queue := new fifo-queue
+queue.push-back(σ0)
+closed := ∅
+while not queue.empty():
+σ = queue.pop-front()
+if state(σ) ∈/ closed:
+closed := closed ∪ {state(σ)}
+if h(σ) < h(σ0):
+return σ
+for each ⟨o, s⟩ ∈ succ(state(σ)):
+σ
+′
+:= make-node(σ, o, s)
+queue.push-back(σ
+′
+)
+fail
+; breadth-first search for more promising node than σ0
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Enforced hill-climbing (ctd.)
+Enforced hill-climbing
+σ := make-root-node(init())
+while not is-goal(state(σ)):
+σ := improve(σ)
+return extract-solution(σ)
+one of the three most commonly used algorithms for
+satisficing planning
+can fail if procedure improve fails (when the goal is
+unreachable from σ0)
+complete for undirected search spaces (where the
+successor relation is symmetric) if h(σ) = 0 for all goal
+nodes and only for goal nodes
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Classification: what works where in (deterministic)
+planning?
+uninformed vs. heuristic search:
+For satisficing planning, heuristic search vastly
+outperforms uninformed algorithms on most domains.
+For optimal planning, heuristic search typically outperforms
+uninformed algorithms, but an efficiently implemented
+uninformed algorithm is not easy to beat in most domains.
+systematic search vs. local search:
+For satisficing planning, the most successful algorithms are
+somewhere between the two extremes.
+For optimal planning, systematic algorithms are required.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Where heuristics come from?
+General idea
+(Admissible) heuristic functions obtained as
+(optimal) cost functions of relaxed problems
+Examples
+Euclidian distance in Path Finding
+Manhattan distance in N-puzzle
+Spanning Tree in Traveling Salesman Problem
+Shortest Path in Job Shop Scheduling
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Example
+Grid Search and Manhattan Distance
+True distance h
+∗
+for different search states
+Manhattan distance is based on the relaxation that ...?
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Example
+8-Puzzle
+2
+Start State Goal State
+51 3
+4 6
+7 8
+5
+1
+2
+3
+4
+6
+7
+8
+5
+A tile can move from square A to square B if A is adjacent to B and
+B is blank ; solution distance h
+∗
+A tile can move from square A to square B if A is adjacent to B ;
+manhattan distance heuristic h
+MD
+A tile can move from square A to square B ;
+misplaced tiles heuristic h
+MT
+Here: h
+∗
+(s0) =?, hMD(s0) = 14, hMT (s0) = 6
+In general, h
+∗ ≥ hMD ≥ hMT
+. (Why?)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Example
+8-Puzzle
+2
+Start State Goal State
+51 3
+4 6
+7 8
+5
+1
+2
+3
+4
+6
+7
+8
+5
+A tile can move from square A to square B if A is adjacent to B and
+B is blank ; solution distance h
+∗
+A tile can move from square A to square B if A is adjacent to B ;
+manhattan distance heuristic h
+MD
+A tile can move from square A to square B ;
+misplaced tiles heuristic h
+MT
+Here: h
+∗
+(s0) =?, hMD(s0) = 14, hMT (s0) = 6
+In general, h
+∗ ≥ hMD ≥ hMT
+. (Why?)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Dominance relation between admissible heuristics
+Precision matters
+Given two admissible heuristics h1, h2, if h2(σ) ≥ h1(σ) for all
+search nodes σ, then h2 dominates h1 and is better for
+optimizing search
+Typical search costs (unit-cost action)
+h
+∗
+(I) = 14 BFS ≈ 1,700,000 nodes
+A
+∗
+(h1) ≈ 560 nodes
+A
+∗
+(h2) ≈ 115 nodes
+h
+∗
+(I) = 24 BFS ≈ 27,000,000,000 nodes
+A
+∗
+(h1) ≈ 40,000 nodes
+A
+∗
+(h2) ≈ 1,650 nodes
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Dominance relation between admissible heuristics
+Precision matters
+Given two admissible heuristics h1, h2, if h2(σ) ≥ h1(σ) for all
+search nodes σ, then h2 dominates h1 and is better for
+optimizing search
+Combining admissible heuristics
+For any admissible heuristics h1, . . . , hk,
+h(σ) = maxk
+i=1{hi(σ)}
+is also admissible and dominates all individual hi
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Where do heuristics come from?
+General idea
+(Admissible) heuristic functions obtained as (optimal) cost
+functions of relaxed problems
+OK, but heuristic is yet another input to our agent!
+Satisfactory for general solvers?
+Satisfactory in special purpose solvers?
+Towards domain-independent agents
+How to get heuristics automatically?
+Can such automatically derived heuristics dominate the
+domain-specific heuristics crafted by hand?
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Heuristic
+functions
+Systematic
+search
+Local search
+Heuristics
+Where do heuristics come from?
+General idea
+(Admissible) heuristic functions obtained as (optimal) cost
+functions of relaxed problems
+OK, but heuristic is yet another input to our agent!
+Satisfactory for general solvers?
+Satisfactory in special purpose solvers?
+Towards domain-independent agents
+How to get heuristics automatically?
+Can such automatically derived heuristics dominate the
+domain-specific heuristics crafted by hand?"
+
+2. Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Introduction to AI
+Domain-independent planning
+Reshef Meir
+Slides by Carmel Domshlak
+DD&S — Technion
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Reminder: Are we solver?
+General idea
+(Admissible) heuristic functions obtained as (optimal) cost
+functions of relaxed problems
+OK, but heuristic is yet another input to our agent!
+Satisfactory for general solvers?
+Satisfactory in special purpose solvers?
+Towards domain-independent agents
+How to get heuristics automatically?
+Can such automatically derived heuristics dominate the
+domain-specific heuristics crafted by hand?
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Model-based Problem Solving
+We want planning to take the form of model-based solving
+Problem =⇒ Language =⇒ Planner =⇒ Solution
+1 models for defining, classifying, and understanding
+problems
+- what is a planning problem
+- what is a solution (plan), and
+- what is an optimal solution
+2 languages for representing problems
+3 algorithms for solving them
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Succinct representation of transition systems
+We want a more compact representation of actions (than
+as general relations)
+possible because of symmetries and other regularities,
+unavoidable because the relations are too big.
+Represent different aspects of the world in terms of
+different state variables.
+; A state is a valuation of state variables.
+Represent actions in terms of changes to the state
+variables.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+State variables
+The state of the world is described in terms of a finite set
+of finite-valued state variables.
+Example
+hour: {0, . . . , 23} = 13
+minute: {0, . . . , 59} = 55
+location: {51, 52, 82, 101, 102} = 101
+weather: {sunny, cloudy,rainy} = cloudy
+holiday: {T, F} = F
+Actions change the values of the state variables.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Blocks world with state variables
+State variables:
+location-of-A: {B, C,table}
+location-of-B: {A, C,table}
+location-of-C: {A, B,table}
+Example
+s(location-of-A) = table
+s(location-of-B) = A
+s(location-of-C) = table A
+B
+C
+Not all valuations correspond to an intended blocks world
+state, e. g. s such that s(location-of-A) = B and
+s(location-of-B) = A.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Blocks world with Boolean state variables
+Example
+s(A-on-B) = 0
+s(A-on-C) = 0
+s(A-on-table) = 1
+s(B-on-A) = 1
+s(B-on-C) = 0
+s(B-on-table) = 0
+s(C-on-A) = 0
+s(C-on-B) = 0
+s(C-on-table) = 1
+A
+B
+C
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Deterministic planning tasks
+Definition (deterministic planning task)
+A deterministic planning task is a 4-tuple Π = ⟨V, I, A, G⟩
+V is a finite set of state variables,
+I is an initial state over V ,
+A is a finite set of actions over V , and
+G is a formula over V describing the goal states.
+in what follows: partial assignment to V
+; Mapping planning tasks to transition systems
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Planning Languages
+Key issue
+Models represented implicitly in a declarative language
+Play two roles
+specification: concise model description
+computation: reveal useful info about problem’s structure
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+The STRIPS language
+A problem in STRIPS is a tuple ⟨P, A, I, G⟩
+P stands for a finite set of atoms (boolean vars)
+I ⊆ P stands for initial situation
+G ⊆ P stands for goal situation
+A is a finite set of actions a specified via
+pre(a), add(a), and del(a), all subsets of P
+States are collections of atoms
+An action a is applicable in a state s iff pre(a) ⊆ s
+Applying an applicable action a at s results in
+s
+′ = (s \ del(a)) ∪ add(a)
+Example (board)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+State variables
+Tasks
+Action Languages
+Obtaining
+heuristics
+Concrete
+Heuristics
+Why STRIPS is interesting
+STRIPS actions are particularly simple, yet expressive
+enough to capture general planning problems.
+In particular, STRIPS planning is no easier than general
+planning problems.
+Many algorithms in the planning literature are easier to
+present in terms of STRIPS .
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+A simple heuristic for deterministic planning
+STRIPS (Fikes & Nilsson, 1971) used the number of state
+variables that differ in current state s and a STRIPS goal
+G = {g1, . . . , gk}:
+h(s) := |G \ s|.
+Intuition: more true goal literals ; closer to the goal
+; STRIPS heuristic (properties?)
+Example
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Criticism of the STRIPS heuristic
+What is wrong with the STRIPS heuristic?
+quite uninformative:
+the range of heuristic values in a given task is small;
+typically, many successors have the same estimate
+very sensitive to reformulation:
+can easily transform any planning task into an equivalent
+one where h(s) = 1 for all non-goal states (how?)
+ignores almost all problem structure:
+heuristic value does not depend on the set of actions!
+; need a better, principled way of coming up with heuristics
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Coming up with heuristics in a principled way
+General procedure for obtaining a heuristic
+Solve an easier version of the problem.
+Two common methods:
+relaxation: consider less constrained version of the problem
+abstraction: consider smaller version of real problem
+Both have been very successfully applied in planning
+(separately and together).
+We consider relaxation.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxing a problem
+How do we relax a problem?
+Example (Route planning for a road network)
+The road network is formalized as a weighted graph over points
+in the Euclidean plane. The weight of an edge is the road
+distance between two locations.
+A relaxation drops constraints of the original problem.
+Example (Relaxation for route planning)
+Use the Euclidean distance p
+|x1 − y1|
+2 + |x2 − y2|
+2 as a
+heuristic for the road distance between (x1, x2) and (y1, y2)
+This is a lower bound on the road distance (; admissible).
+; We drop the constraint of having to travel on roads.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxations for planning
+Relaxation is a general technique for heuristic design:
+Straight-line heuristic (route planning): Ignore the fact
+that one must stay on roads.
+Manhattan heuristic (15-puzzle): Ignore the fact that one
+cannot move through occupied tiles.
+We want to apply the idea of relaxations to planning.
+Informally, we want to ignore bad side effects of applying
+actions.
+Example (8-puzzle)
+If we move a tile from x to y, then the good effect is
+(in particular) that x is now free.
+The bad effect is that y is not free anymore, preventing us for
+moving tiles through it.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxed planning tasks: idea
+Definition
+A planning problem is Monotone if no action has a bad effect.
+In STRIPS, good and bad effects are easy to distinguish:
+Effects that make atoms true are good (why?)
+(add effects).
+Effects that make atoms false are bad
+(delete effects).
+Idea for a monotone heuristic: Ignore all delete effects.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxed planning tasks: idea
+Definition
+A planning problem is Monotone if no action has a bad effect.
+In STRIPS, good and bad effects are easy to distinguish:
+Effects that make atoms true are good (why?)
+(add effects).
+Effects that make atoms false are bad
+(delete effects).
+Idea for a monotone heuristic: Ignore all delete effects.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxed planning tasks
+Definition (relaxation of actions)
+The relaxation a
++ of a STRIPS action
+a = ⟨pre(a), add(a), del(a)⟩ is the action
+a
++ = ⟨pre(a), add(a), ∅⟩.
+Definition (relaxation of planning tasks)
+The relaxation Π+ of a STRIPS planning task Π = ⟨P, A, I, G⟩
+is the planning task Π+ := ⟨P, {a
++ | a ∈ A}, I, G⟩.
+Definition (relaxation of action sequences)
+The relaxation of an action sequence ρ = a1 . . . an is the action
+sequence ρ
++ := a1
++ . . . an
++.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Relaxed planning tasks: terminology
+STRIPS planning tasks without delete effects are called
+relaxed planning tasks.
+Plans for relaxed planning tasks are called relaxed plans.
+If Π is a STRIPS planning task and ρ
++ is a plan for Π+,
+then ρ
++ is called a relaxed plan for Π.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Example: Logistics
+a = ⟨pre(a), add(a), del(a)⟩
+Drive(X, Y ) = ⟨{at(T, X)}, {at(T, Y )}, {at(T, X)}⟩
+Load(A, X) =
+⟨{at(T, X), at(A, X), clear(T)}, {in(A, T)}, {at(A, X), clear(T)}⟩
+UnLoad(A, X) = ⟨{at(T, X), in(A, T)}, {at(A, X), clear(T)}, {in(A, T)}⟩
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Example: Logistics
+Initial state I: {at(A, Lef t), at(T, Lef t), at(B, Right)}
+f (I, Drive(Lef t, Right)) =
+{at(A, Lef t), at(T, Right), at(B, Right)}
+f
+
+I, Drive(Lef t, Right)
++
+
+=
+{at(A, Lef t), at(T, Lef t), at(T, Right), at(B, Right)}
+f (I,⟨Drive(Lef t, Right), Load(A, Lef t)⟩) is undefined
+f
+
+I,⟨Drive(Lef t, Right)
++, Load(A, Lef t)
++⟩
+
+=
+{at(A, Lef t), at(T, Lef t), at(T, Right), at(B, Right),in(A, T
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Example: 8-Puzzle
+1 2 3
+6 7 9
+4 8
+1 2 3
+4 6
+7 8 9
+A tile can move from square A to square B if A is adjacent
+to B and B is blank - solution distance h
+∗
+A tile can move from square A to square B if A is adjacent
+to B - manhattan distance heuristic hMD
+A tile can move from square A to square B if A is adjacent
+to B and B is blank; in effect, the tile is at both A and B,
+and both A and B are blank - h
++
+Here: h
+∗
+(s0) = 8, hMD(s0) = 6, h
++(s0) =???
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Example: 8-Puzzle 1 2 3 6 7 9 4 8
+1
+2
+3
+4
+6
+7
+8
+9
+Optimal MD plan: 1 move(t9, p6, p9) 2 move(t7, p5, p8) 3 move(t6, p4, p5) 4 move(t6, p5, p6) 5 move(t4, p7, p4) 6 move(t7, p8, p7)
+Optimal relaxed plan: 1 move(t9, p6, p9) 2 move(t8, p8, p9) 3 move(t7, p5, p8) 4 move(t6, p4, p5) 5 move(t6, p5, p6) 6 move(t4, p7, p4) 7 move(t7, p8, p7)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Example: 8-Puzzle
+1 2 3
+6 7 9
+4 8
+1 2 3
+4 6
+7 8 9
+Optimal MD plan:
+1 move(t9, p6, p9)
+2 move(t7, p5, p8)
+3 move(t6, p4, p5)
+4 move(t6, p5, p6)
+5 move(t4, p7, p4)
+6 move(t7, p8, p7)
+Optimal relaxed plan:
+1 move(t9, p6, p9)
+2 move(t8, p8, p9)
+3 move(t7, p5, p8)
+4 move(t6, p4, p5)
+5 move(t6, p5, p6)
+6 move(t4, p7, p4)
+7 move(t7, p8, p7)
+So h
+∗
+(s0) = 8, hMD(s0) = 6, h
++(s0) = 7(> hMD!)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+8-Puzzle: h
++ vs. h
+MD
+1 2 3
+6 7 9
+4 8
+1 2 3
+4 6
+7 8 9
+h
++ dominates hMD
+The goal is given as a conjunction of at(ti
+, pj ) atoms
+Achieving each single one of them takes at least as many
+steps as the respective tile’s Manhattan distance
+Each action moves a single tile only
+And we have just seen that h
++ strictly dominates hMD
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Dominating states
+A state s
+′ dominates another state s iff s ⊆ s
+′
+.
+Lemma (relaxation)
+Let s be a state, let s
+′ be a state that dominates s,
+and let ρ be an action sequence which is applicable in s.
+Then ρ
++ is applicable in s
+′
+and appρ+ (s
+′
+) dominates appρ
+(s).
+Moreover, if ρ leads to a goal state from s, then ρ
++ leads to a
+goal state from s
+′
+.
+Proof.
+The “moreover” part is immediate from appρ+ (s
+′
+) dominating
+appρ
+(s). Prove the rest by induction over the length of ρ.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Consequences of the relaxation lemma
+Corollary (relaxation leads to dominance and preserves plans)
+Let ρ be an action sequence which is applicable in state s.
+Then ρ
++ is applicable in s and appρ+ (s) dominates appρ
+(s).
+If ρ is a plan for Π, then ρ
++ is a plan for Π+.
+Proof.
+Apply relaxation lemma with s
+′ = s.
+; Relaxations of plans are relaxed plans.
+; Relaxations are no harder to solve than the original task.
+; Optimal relaxed plans are never longer than optimal plans
+for original tasks.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Consequences of the relaxation lemma (ctd.)
+Corollary (relaxation preserves dominance)
+Let s be a state, let s
+′ be a state that dominates s,
+and let ρ
++ be a relaxed action sequence applicable in s.
+Then ρ
++ is applicable in s
+′
+and appρ+ (s
+′
+) dominates appρ+ (s).
+Proof.
+Apply relaxation lemma with ρ
++ for ρ, noting that
+(ρ
++)
++ = ρ
++.
+; If there is a relaxed plan starting from state s, the same
+plan can be used starting from a dominating state s
+′
+.
+; Making a transition to a dominating state never hurts in
+relaxed planning tasks.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Monotonicity of relaxed planning tasks
+We need one final property before we can provide an algorithm
+for solving relaxed planning tasks.
+Lemma (monotonicity)
+Let a
++ = ⟨pre(a), add(a), ∅⟩ be a relaxed action and let s be a
+state in which a
++ is applicable.
+Then appa+ (s) dominates s.
+Proof.
+Since relaxed actions only have positive effects, we have
+s ⊆ s ∪ add(a) = appa+ (s).
+; Together with our previous results, this means that
+making a transition in a relaxed planning task never hurts.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Greedy algorithm for relaxed planning tasks
+The relaxation and monotonicity lemmas suggest the following
+algorithm for solving relaxed planning tasks:
+Greedy planning algorithm for ⟨P, A+, I, G⟩
+s := I
+ρ
++ := ϵ
+forever:
+if G ⊆ s:
+return ρ
++
+else if there is an action a
++ ∈ A+ applicable in s
+with appa+ (s) ̸= s:
+Append such an action a
++ to ρ
++.
+s := appa+ (s)
+else:
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Correctness of the greedy algorithm
+The algorithm is sound:
+If it returns a plan, this is indeed a correct solution.
+If it returns “unsolvable”, the task is indeed unsolvable
+Upon termination, there clearly is no relaxed plan from s.
+By iterated application of the monotonicity lemma, s
+dominates I.
+By the relaxation lemma, there is no solution from I.
+What about completeness (termination) and runtime?
+Each iteration of the loop adds at least one atom to s.
+This guarantees termination after at most |P| iterations.
+Thus, the algorithm can clearly be implemented to run in
+polynomial time.
+A good implementation runs in O(∥Π∥).
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Using the greedy algorithm as a heuristic
+We can apply the greedy algorithm within heuristic search:
+In a search node σ, solve the relaxation of the planning
+task with state(σ) as the initial state.
+Set hˆ+(σ) to the length of the generated relaxed plan.
+Note that hˆ+ ̸= h
++ (which is larger?)
+Is hˆ+ an admissible heuristic?
+Yes if the relaxed plans are optimal (due to the plan
+preservation corollary).
+However, usually they are not, because our greedy
+planning algorithm is very poor.
+(What about safety? Goal-awareness? Consistency?)
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+The set cover problem
+To obtain an admissible heuristic, we need to generate optimal
+relaxed plans. Can we do this efficiently?
+This question is related to the following problem:
+Problem (set cover)
+Given: a finite set U, a collection of subsets C = {C1, . . . , Cn}
+with Ci ⊆ U for all i ∈ {1, . . . , n}, and a natural number K.
+Question: Does there exist a set cover of size at most K, i. e.,
+a subcollection S = {S1, . . . , Sm} ⊆ C with S1 ∪ · · · ∪ Sm = U
+and m ≤ K?
+The following is a classical result from complexity theory:
+Theorem
+The set cover problem is NP-complete.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Hardness of optimal relaxed planning
+Theorem (optimal relaxed planning is hard)
+The problem of deciding whether a given relaxed planning task
+has a plan of length at most K is NP-complete.
+Proof.
+For membership in NP, guess a plan and verify. It is sufficient
+to check plans of length at most |P|, so this can be done in
+nondeterministic polynomial time.
+For hardness, we reduce from the set cover problem.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Hardness of optimal relaxed planning (ctd.)
+Proof (ctd.)
+Given a set cover instance ⟨U, C, K⟩, we generate the following
+relaxed planning task Π+ = ⟨P, I, A+, G⟩:
+P = U
+I = ∅ ≡ I = {p = 0 | p ∈ P}
+A+ = {⟨pre = ∅, add = Ci
+, del = ∅⟩ | Ci ∈ C}
+G = U
+If S is a set cover, the corresponding actions form a plan.
+Conversely, each plan induces a set cover by taking the subsets
+corresponding to the actions. Clearly, there exists a plan of
+length at most K iff there exists a set cover of size K.
+Moreover, Π+ can be generated from the set cover instance in
+polynomial time, so this is a polynomial reduction.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Using relaxations in practice
+How can we use relaxations for heuristic planning in practice?
+Different possibilities:
+Implement an optimal planner for relaxed planning tasks
+and use its solution lengths as an estimate, even though it
+is NP-hard.
+; h
++ heuristic (not that realistic. why?)
+Use the greedy algorithm
+; hˆ+ heuristic
+Do not actually solve the relaxed planning task, but
+compute an estimate of its difficulty in a different way.
+; hmax heuristic, hadd heuristic
+Compute a solution for relaxed planning tasks which is not
+necessarily optimal, but “reasonable”.
+; hFF heuristic
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Using relaxations in practice
+How can we use relaxations for heuristic planning in practice?
+Different possibilities:
+Implement an optimal planner for relaxed planning tasks
+and use its solution lengths as an estimate, even though it
+is NP-hard.
+; h
++ heuristic (not that realistic. why?)
+Use the greedy algorithm
+; hˆ+ heuristic
+Do not actually solve the relaxed planning task, but
+compute an estimate of its difficulty in a different way.
+; hmax heuristic, hadd heuristic
+Compute a solution for relaxed planning tasks which is not
+necessarily optimal, but “reasonable”.
+; hFF heuristic
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Using relaxations in practice
+How can we use relaxations for heuristic planning in practice?
+Different possibilities:
+Implement an optimal planner for relaxed planning tasks
+and use its solution lengths as an estimate, even though it
+is NP-hard.
+; h
++ heuristic (not that realistic. why?)
+Use the greedy algorithm
+; hˆ+ heuristic
+Do not actually solve the relaxed planning task, but
+compute an estimate of its difficulty in a different way.
+; hmax heuristic, hadd heuristic
+Compute a solution for relaxed planning tasks which is not
+necessarily optimal, but “reasonable”.
+; hFF heuristic
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+STRIPS heuristic
+Relaxation heuristics
+The relaxation
+lemma
+Greedy algorithm
+Optimality
+Discussion
+Concrete
+Heuristics
+Using relaxations in practice
+How can we use relaxations for heuristic planning in practice?
+Different possibilities:
+Implement an optimal planner for relaxed planning tasks
+and use its solution lengths as an estimate, even though it
+is NP-hard.
+; h
++ heuristic (not that realistic. why?)
+Use the greedy algorithm
+; hˆ+ heuristic
+Do not actually solve the relaxed planning task, but
+compute an estimate of its difficulty in a different way.
+; hmax heuristic, hadd heuristic
+Compute a solution for relaxed planning tasks which is not
+necessarily optimal, but “reasonable”.
+; hFF heuristic
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Reminder: Greedy algorithm for relaxed planning
+tasks
+Greedy planning algorithm for ⟨P, A+, I, G⟩
+s := I
+ρ
++ := ϵ
+forever:
+if G ⊆ s:
+return ρ
++
+else if there is an action a
++ ∈ A+ applicable in s
+with appa+ (s) ̸= s:
+Append such an action a
++ to ρ
++.
+s := appa+ (s)
+else:
+return unsolvable
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Graphical “interpretation”: Relaxed planning
+graphs
+Build a layered reachability graph P0, A0, P1, A1, . . .
+P0 = {p ∈ I}
+Ai = {a ∈ A | pre(a) ⊆ Pi}
+Pi+1 = Pi ∪ {p ∈ add(a) | a ∈ Ai}
+Terminate when G ⊆ Pi
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example
+P
+=
+{a, b, c, d, e, f, g, h
+}
+I
+=
+{
+a
+}
+G
+=
+{c, d, e, f, g
+}
+a
+1
+= ⟨{
+a
+}
+,
+{b, c
+}
+, ∅⟩
+a
+2
+= ⟨{a, c
+}
+,
+{
+d
+}
+, ∅⟩
+a
+3
+= ⟨{b, c
+}
+,
+{
+e
+}
+, ∅⟩
+a
+4
+= ⟨{
+b
+}
+,
+{
+f
+}
+, ∅⟩
+a
+5
+= ⟨{
+d
+}
+,
+{e, f
+}
+, ∅⟩
+a
+6
+= ⟨{
+d
+}
+,
+{
+g
+}
+, ∅⟩
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+RPG1(Π+)
+a
+1
+b
+1
+c
+1
+a1
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+RPG1(Π+)
+a
+1
+b
+1
+c
+1
+a1
+RPG2(Π+)
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a1
+a2
+a3
+a4
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+RPG1(Π+)
+a
+1
+b
+1
+c
+1
+a1
+RPG2(Π+)
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a1
+a2
+a3
+a4
+RPG3(Π+)
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a1
+a2
+a3
+a4
+a5
+a6
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+RPG1(Π+)
+a
+1
+b
+1
+c
+1
+a1
+RPG2(Π+)
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a1
+a2
+a3
+a4
+RPG3(Π+)
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a1
+a2
+a3
+a4
+a5
+a6
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Running example: Relaxed planning graph
+RPG0(Π+)
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+RPG1(Π+)
+a
+1
+b
+1
+c
+1
+a1
+RPG2(Π+)
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a1
+a2
+a3
+a4
+RPG3(Π+)
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a1
+a2
+a3
+a4
+a5
+a6
+G
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Generic relaxed planning graph heuristics
+Computing heuristics from relaxed planning graphs
+def generic-rpg-heuristic(⟨P, I, O, G⟩, s):
+Π+ := ⟨P, s, O+, G⟩
+for k ∈ {0, 1, 2, . . . }:
+rpg := RPGk(Π+)
+if G ⊆ Pk:
+Annotate nodes of rpg.
+if termination criterion is true:
+return heuristic value from annotations
+else if k = |P|:
+return ∞
+; generic template for heuristic functions
+; to get concrete heuristic: fill in highlighted parts
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Concrete examples for the generic heuristic
+Many planning heuristics fit the generic template:
+max heuristic hmax
+additive heuristic hadd
+FF heuristic hFF
+...
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Forward cost heuristics
+The simplest relaxed planning graph heuristics are
+forward cost heuristics.
+Examples: hmax, hadd
+Here, node annotations are cost values (natural numbers).
+The cost of a node estimates how expensive (in terms of
+required operators) it is to make this node true.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Forward cost heuristics: fitting the template
+Forward cost heuristics
+Computing annotations:
+Propagate cost values bottom-up using a combination rule
+for action nodes and a combination rule for proposition
+nodes.
+At action nodes, add 1 after applying combination rule.
+Termination criterion:
+stability: terminate if Pk = Pk−1 and cost for each
+proposition node p
+k ∈ Pk equals cost for p
+k−1 ∈ Pk−1
+Heuristic value:
+The heuristic value is the cost of the auxiliary goal node.
+Different forward cost heuristics only differ in their choice
+of combination rules.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+The max heuristic hmax (again)
+Forward cost heuristics: max heuristic hmax
+Combination rule for action / goal nodes:
+cost(a) = max({cost(p1), . . . , cost(pk)}) (plus 1 at action
+nodes)
+(with max(∅) := 0)
+Combination rule for proposition nodes:
+cost(p) = min({cost(a1), . . . , cost(ak)})
+In both cases, {x1, . . . , xk} is the set of immediate
+predecessors of A or P.
+Intuition:
+Action rule: If we have to achieve several preconditions,
+estimate this by the most expensive cost.
+Proposition rule: If we have a choice how to achieve a
+proposition, pick the cheapest possibility.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+12
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1222
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1222
+011222
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1222
+011222
+122233
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1222
+011222
+122233
+0112223
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1222
+011222
+122233
+0112223
+3
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+The additive heuristic
+Forward cost heuristics: additive heuristic hadd
+Combination rule for action / goal nodes:
+cost(a) = cost(p1) + . . . + cost(pk) (plus 1 at action
+nodes)
+(with P(∅) := 0)
+Combination rule for proposition nodes:
+cost(p) = min({cost(a1), . . . , cost(ak)})
+Intuition:
+Action rule: If we have to achieve several preconditions,
+estimate this by the cost of achieving each in isolation.
+Proposition rule: If we have a choice how to achieve a
+proposition, pick the cheapest possibility.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+12
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1232
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1232
+011232
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1232
+011232
+123233
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1232
+011232
+123233
+0112323
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+0
+1
+011
+1232
+011232
+123233
+0112323
+11
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Remarks on hadd
+hadd is safe and goal-aware.
+Unlike hmax, hadd is a very informative heuristic in many
+planning domains.
+Q: Intuitively, when it will be informative?
+The price for this is that it is not admissible (and hence
+also not consistent), so not suitable for optimal planning.
+In fact, it almost always overestimates the h
++ value
+because it does not take positive interactions into account.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+FF heuristic: fitting the template
+The FF heuristic hFF
+Computing annotations:
+Annotations are Boolean values, computed top-down.
+A node is marked when its annotation is set to 1 and
+unmarked if it is set to 0. Initially, the goal node is
+marked, and all other nodes are unmarked.
+We say that an action node is justified if all its true
+immediate predecessors are marked, and that a proposition
+node is justified if at least one of its immediate
+predecessors is marked.
+. . .
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+FF heuristic: fitting the template (ctd.)
+The FF heuristic hFF (ctd.)
+Computing annotations:
+. . .
+Apply these rules until all marked nodes are justified:
+1 Mark all immediate predecessors of a marked unjustified
+ACTION (or GOAL) node.
+2 Mark the immediate predecessor of a marked unjustified
+PROP node with only one immediate predecessor.
+3 Mark an immediate predecessor of a marked unjustified
+PROP node connected via an idle arc.
+4 Mark any immediate predecessor of a marked unjustified
+PROP node.
+The rules are given in priority order: earlier rules are
+preferred if applicable.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+FF heuristic: fitting the template (ctd.)
+The FF heuristic hFF (ctd.)
+Termination criterion:
+Always terminate at first layer where goal node is true.
+Heuristic value:
+The heuristic value is the number of marked action nodes.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+G
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MG
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMM
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMM
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+M
+J
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+M
+J
+JJJ
+MM
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+M
+J
+JJJ
+MMJJ
+M
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+M
+J
+JJJ
+MMJJ
+MJ
+M
+J
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template hmax hadd hFF
+Comparison &
+practice
+Running example:
+hFF
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+h
+3
+a
+1
+b
+1
+c
+1
+a
+1
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+3
+b
+3
+c
+3
+d
+3
+e
+3
+f
+3
+g
+3
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+MGJ
+MMMMMJ
+M
+JJJJ
+J
+MMMMJJJ
+MMM
+M
+J
+JJJ
+MMJJ
+MJ
+M
+J
+JJJ
+J
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Remarks on hFF
+Like hadd, hFF is safe and goal-aware, but neither
+admissible nor consistent.
+Always more accurate than hadd with respect to h
++.
+Marked actions define a relaxed plan.
+hFF can be computed in linear time.
+The hFF value depends on tie-breaking when the marking
+rules allow several possible choices, so hFF is not
+well-defined without specifying the tie-breaking rule.
+The best implementations of FF use additional rules of
+thumb to try to reduce the size of the generated relaxed
+plan.
+Introduction
+to AI
+Reshef Meir
+Slides by
+Carmel
+Domshlak
+Introduction
+Problem
+specification
+Obtaining
+heuristics
+Concrete
+Heuristics
+Template
+hmax
+hadd
+hFF
+Comparison &
+practice
+Comparison of relaxation heuristics
+Relationship between relaxation heuristics
+Let s be a state of planning task ⟨P, I, O, G⟩. Then:
+hmax(s) ≤ h
++(s) ≤ h
+∗
+(s)
+hmax(s) ≤ h
++(s) ≤ hFF(s) ≤ hadd(s)
+h
+∗
+and hFF are pairwise incomparable
+h
+∗
+and hadd are incomparable
+Moreover, h
++, hmax, hadd, and hFF assign ∞ to the same set
+of states.
+Note: For inadmissible heuristics, dominance is in general
+neither desirable nor undesirable. For relaxation heuristics, the
+objective is usually to get as close to h
++ as possible."
+
+3. "Principles of AI (Planning)
+6. Planning with STRIPS
+William Davidson Faculty of Industrial Engineering and Management
+Technion - Israel Institute of Technology
+Real World: Problem to solve
+World description (State space)
+Legal moves (Operators)
+Initial position (Initial state)
+Desired outcome (Goal states)
+Real World Example I
+There is a table T, a crane C and n blocks. Each block can be
+either on table, in crane, or on one other block. Crane can pick
+up a block from the table, if it isn’t holding any block, it can
+drop a block on table, if it is holding that block, it can stack
+block x on top of block y, if it is holding block x and there is
+no block on top of block y, and it can unstack block x from
+block y into the crane, if it isn’t holding any block, and there is
+no block on top of block x. Initially the blocks are stacked into
+a tower 1 . . . n, and we want to swap the lowest two blocks,
+n − 1 and n.
+Real World Example I
+World description
+There is a table T, a crane C and n blocks. Each block can be
+either on table, in crane, or on one other block
+Operators
+Crane can pick up a block from the table, if it isn’t holding any
+block, it can drop a block on table, if it is holding that block, it
+can stack block x on top of block y, if it is holding block x and
+there is no block on top of block y, and it can unstack block x
+from block y into the crane, if it isn’t holding any block, and
+there is no block on top of block x
+Initial State
+Initially the blocks are stacked into a tower 1 . . . n
+Goal
+We want to swap the lowest two blocks, n − 1 and n
+STRIPS Encoding
+Planning task in STRIPS is a quadruple hP, O, I, Gi:
+P: finite set of predicates
+O: finite set of operators of form hpre, add, deli
+O: (preconditions/add effects/delete effects: subsets of
+predicates)
+I: initial state (subset of predicates, others assumed to be
+false)
+G: goal description (subset of predicates)
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+(on ?x, ?y) — Block ?x is directly on block ?y
+(ontable ?x) — Block ?x is on table
+(clear ?x) — There is no block above block ?x
+(handempty) — The crane is empty
+(holding ?x) — The crane is holding block ?x
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up block ?x from table
+Drop block ?x on table
+Unstack block ?x from block ?y
+Stack block ?x on block ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up block ?x from table
+Pick-up(?x):
+Preconditions:
+h(clear ?x),(ontable ?x),(handempty)i
+Add Effects:
+h(holding ?x)i
+Delete Effects:
+h(clear ?x),(ontable ?x),(handempty)i
+Drop block ?x on table
+Unstack block ?x from block ?y
+Stack block ?x on block ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up block ?x from table
+Drop block ?x on table
+Drop(?x):
+Preconditions:
+h(holding ?x)i
+Add Effects:
+h(clear ?x),(ontable ?x),(handempty)i
+Delete Effects:
+h(holding ?x)i
+Unstack block ?x from block ?y
+Stack block ?x on block ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up block ?x from table
+Drop block ?x on table
+Unstack block ?x from block ?y
+Unstack(?x, ?y):
+Preconditions:
+h(on ?x, ?y),(clear ?x),(handempty)i
+Add Effects:
+h(holding ?x),(clear ?y)i
+Delete Effects:
+h(on ?x, ?y),(clear ?x),(handempty)i
+Stack block ?x on block ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up block ?x from table
+Drop block ?x on table
+Unstack block ?x from block ?y
+Stack block ?x on block ?y
+Stack(?x, ?y):
+Preconditions:
+h(holding ?x),(clear ?y)i
+Add Effects:
+h(clear ?x),(on ?x, ?y),(handempty)i
+Delete Effects:
+h(holding ?x),(clear ?y)i
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initially we have
+(ontable n),(handempty),(clear 1)
+(on 1, 2), . . . ,(on n−1, n)
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+In goal we demand
+(on 1, 2), . . . ,(on n−3, n−2)
+(on n−2, n),(on n, n−1)
+Real World Example II
+Sliding Tile Puzzle consists of a N × N board with b tiles
+missing. The object of the puzzle is to move tiles from their
+initial position to the goal position. A legal move is a move
+up/down/lef/right within board limits to the position of some
+missing tile.
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+(at ?t ?x ?y) — Tile ?t location is (?x, ?y).
+(blank ?x ?y) — Blank tile location is (?x, ?y).
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Move tile ?t up from (i, j) ∈ {2 . . . N} × {1 . . . N}
+Move tile ?t down from (i, j) ∈ {1 . . . N-1} × {1 . . . N}
+Move tile ?t left from (i, j) ∈ {1 . . . N} × {2 . . . N}
+Move tile ?t right from (i, j) ∈ {1 . . . N} × {1 . . . N-1}
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Move tile ?t up from (i, j) ∈ {2 . . . N} × {1 . . . N}
+Move-Up(?t, i, j):
+Preconditions:
+h(blank i-1 j),(at ?t i j)i
+Add Effects:
+h(blank i j),(at ?t i-1 j)i
+Delete Effects:
+h(blank i-1 j),(at ?t i j)i
+Move tile ?t down from (i, j) ∈ {1 . . . N-1} × {1 . . . N}
+Move tile ?t left from (i, j) ∈ {1 . . . N} × {2 . . . N}
+Move tile ?t right from (i, j) ∈ {1 . . . N} × {1 . . . N-1}
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Move tile ?t up from (i, j) ∈ {2 . . . N} × {1 . . . N}
+Move tile ?t down from (i, j) ∈ {1 . . . N-1} × {1 . . . N}
+Move-Down(?t, i, j):
+Preconditions:
+h(blank i+1 j),(at ?t i j)i
+Add Effects:
+h(blank i j),(at ?t i+1 j)i
+Delete Effects:
+h(blank i+1 j),(at ?t i j)i
+Move tile ?t left from (i, j) ∈ {1 . . . N} × {2 . . . N}
+Move tile ?t right from (i, j) ∈ {1 . . . N} × {1 . . . N-1}
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Move tile ?t up from (i, j) ∈ {2 . . . N} × {1 . . . N}
+Move tile ?t down from (i, j) ∈ {1 . . . N-1} × {1 . . . N}
+Move tile ?t left from (i, j) ∈ {1 . . . N} × {2 . . . N}
+Move-Left(?t, i, j):
+Preconditions:
+h(blank i j-1),(at ?t i j)i
+Add Effects:
+h(blank i j),(at ?t i j-1)i
+Delete Effects:
+h(blank i j-1),(at ?t i j)i
+Move tile ?t right from (i, j) ∈ {1 . . . N} × {1 . . . N-1}
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Move tile ?t up from (i, j) ∈ {2 . . . N} × {1 . . . N}
+Move tile ?t down from (i, j) ∈ {1 . . . N-1} × {1 . . . N}
+Move tile ?t left from (i, j) ∈ {1 . . . N} × {2 . . . N}
+Move tile ?t right from (i, j) ∈ {1 . . . N} × {1 . . . N-1}
+Move-Right(?t, i, j):
+Preconditions:
+h(blank i j+1),(at ?t i j)i
+Add Effects:
+h(blank i j),(at ?t i j+1)i
+Delete Effects:
+h(blank i j+1),(at ?t i j)i
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initially we have
+(at 1 1 1),(at 2 2 2),(at 3 3 2),(at 4 1 3),(at 5 2 1)
+(blank 1 2),(blank 2 3),(blank 3 1),(blank 3 3)
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+In goal we demand
+(at 1 1 1),(at 2 1 2),(at 3 1 3),(at 4 2 1),(at 5 2 2)
+Real World Example III
+Count Oldguy lives in a castle with two treasure rooms:
+RoomA and RoomB. While RoomB is empty, RoomA contains
+a pile of n different golden coins. Count Oldguy plans to have
+a party in RoomA and therefore he has to move all the coins to
+RoomB. The task is too hard for him to do it himself, and he
+trusts no mortal, and hence he buys a robot Roby. Roby has
+two arms, ArmA and ArmB, each can hold up to one coin.
+Each arm can pick up and drop any coin and Roby can move
+from RoomA to RoomB and vice versa. Initially, Roby is in
+RoomA, and both its arms are empty.
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+(at ?c ?r) — Coin c is in room r.
+(carry ?a ?c) — Arm a carries coin c.
+(at-robby ?r) — Robot is in room r.
+(free ?a) — Arm a is free.
+Operators
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up coin ?c with arm ?a in room ?r
+Drop coin ?c from arm ?a in room ?r
+Move robot from room ?x to room ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up coin ?c with arm ?a in room ?r
+Pick(?c, ?a, ?r):
+Preconditions:
+h(at ?c ?r),(at-robby ?r),(free ?a)i
+Add Effects:
+h(carry ?a ?c)i
+Delete Effects:
+h(at ?c ?r),(free ?a)i
+Drop coin ?c from arm ?a in room ?r
+Move robot from room ?x to room ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up coin ?c with arm ?a in room ?r
+Drop coin ?c from arm ?a in room ?r
+Drop(?c, ?a, ?r):
+Preconditions:
+h(carry ?a ?c),(at-robby ?r)i
+Add Effects:
+h(at ?c ?r),(free ?a)i
+Delete Effects:
+h(carry ?a ?c)i
+Move robot from room ?x to room ?y
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Pick up coin ?c with arm ?a in room ?r
+Drop coin ?c from arm ?a in room ?r
+Move robot from room ?x to room ?y
+Move(?x, ?y):
+Preconditions:
+h(at-robby ?x)i
+Add Effects:
+h(at-robby ?y)i
+Delete Effects:
+h(at-robby ?x)i
+Initial State
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initially we have
+(at c1 RoomA), . . . ,(at cn RoomA)
+(at-robby RoomA)
+(free ArmA),(free ArmB)
+Goal
+STRIPS: Problem definition
+Predicates
+Operators
+Initial State
+In goal we demand
+(at c1 RoomB), . . . ,(at cn RoomB)"
+
+4. "Principles of AI (Planning)
+7. Relaxed Planning Graph
+William Davidson Faculty of Industrial Engineering and Management
+Technion - Israel Institute of Technology
+Sliding Tile Puzzle 2X2
+P =
+
+
+
+11,1, 11,2, 12,1, 12,2,
+21,1, 21,2, 22,1, 22,2,
+31,1, 31,2, 32,1, 32,2,
+b1,1, b1,2, b2,1, b2,2
+
+
+
+O =
+
+
+
+U(12,1),U(12,2),U(22,1),U(22,2),U(32,1),U(32,2),
+D(11,1), D(11,2), D(21,1), D(21,2), D(31,1), D(31,2),
+L(11,2), L(12,2), L(21,2), L(22,2), L(31,2), L(32,2),
+R(11,1), R(12,1), R(21,1), R(22,1), R(31,1), R(32,1),
+
+
+
+I = {31,1, 21,2, 12,2, b2,1}
+G = {11,1, 21,2, 32,1}
+Sliding Tile Puzzle: Operators
+U(12,1) = h{b1,1, 12,1}, {b2,1, 11,1}, {b1,1, 12,1}i
+U
++(12,1) = h{b1,1, 12,1}, {b2,1, 11,1}, ∅i
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+1
+2
+1,1
+1
+2
+1,2
+1
+2
+2,1
+1
+2
+2,2
+2
+2
+1,1
+2
+2
+1,2
+2
+2
+2,1
+2
+2
+2,2
+3
+2
+1,1
+3
+2
+1,2
+3
+2
+2,1
+3
+2
+2,2
+b
+2
+1,1
+b
+2
+1,2
+b
+2
+2,1
+b
+2
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+1
+2
+1,1
+1
+2
+1,2
+1
+2
+2,1
+1
+2
+2,2
+2
+2
+1,1
+2
+2
+1,2
+2
+2
+2,1
+2
+2
+2,2
+3
+2
+1,1
+3
+2
+1,2
+3
+2
+2,1
+3
+2
+2,2
+b
+2
+1,1
+b
+2
+1,2
+b
+2
+2,1
+b
+2
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+1
+2
+1,1
+1
+2
+1,2
+1
+2
+2,1
+1
+2
+2,2
+2
+2
+1,1
+2
+2
+1,2
+2
+2
+2,1
+2
+2
+2,2
+3
+2
+1,1
+3
+2
+1,2
+3
+2
+2,1
+3
+2
+2,2
+b
+2
+1,1
+b
+2
+1,2
+b
+2
+2,1
+b
+2
+2,2
+L+(12,2)
+2
+D+(31,1)
+2
+L+(21,2)
+2
+D+(21,2)
+2
+U+(32,1)
+2
+R+(32,1)
+2
+R+(12,1)
+2
+U+(12,1)
+2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+L+(12,2)
+2
+D+(31,1)
+2
+L+(21,2)
+2
+D+(21,2)
+2
+U+(32,1)
+2
+R+(32,1)
+2
+R+(12,1)
+2
+U+(12,1)
+2
+1
+2
+1,1
+1
+2
+1,2
+1
+2
+2,1
+1
+2
+2,2
+2
+2
+1,1
+2
+2
+1,2
+2
+2
+2,1
+2
+2
+2,2
+3
+2
+1,1
+3
+2
+1,2
+3
+2
+2,1
+3
+2
+2,2
+b
+2
+1,1
+b
+2
+1,2
+b
+2
+2,1
+b
+2
+2,2
+Sliding Tile Puzzle: Relaxed Planning Graph
+1
+0
+1,1
+1
+0
+1,2
+1
+0
+2,1
+1
+0
+2,2
+2
+0
+1,1
+2
+0
+1,2
+2
+0
+2,1
+2
+0
+2,2
+3
+0
+1,1
+3
+0
+1,2
+3
+0
+2,1
+3
+0
+2,2
+b
+0
+1,1
+b
+0
+1,2
+b
+0
+2,1
+b
+0
+2,2
+L+(12,2)
+1
+D+(31,1)
+1
+1
+1
+1,1
+1
+1
+1,2
+1
+1
+2,1
+1
+1
+2,2
+2
+1
+1,1
+2
+1
+1,2
+2
+1
+2,1
+2
+1
+2,2
+3
+1
+1,1
+3
+1
+1,2
+3
+1
+2,1
+3
+1
+2,2
+b
+1
+1,1
+b
+1
+1,2
+b
+1
+2,1
+b
+1
+2,2
+L+(12,2)
+2
+D+(31,1)
+2
+L+(21,2)
+2
+D+(21,2)
+2
+U+(32,1)
+2
+R+(32,1)
+2
+R+(12,1)
+2
+U+(12,1)
+2
+1
+2
+1,1
+1
+2
+1,2
+1
+2
+2,1
+1
+2
+2,2
+2
+2
+1,1
+2
+2
+1,2
+2
+2
+2,1
+2
+2
+2,2
+3
+2
+1,1
+3
+2
+1,2
+3
+2
+2,1
+3
+2
+2,2
+b
+2
+1,1
+b
+2
+1,2
+b
+2
+2,1
+b
+2
+2,2
+G
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+11
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+11
+00001111
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+11
+00001111
+11222222
+Sliding Tile Puzzle:
+hmax
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+11
+00001111
+11222222
+2102020121201
+Sliding Tile Puzzle:
+hmax = 2
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+a
+2
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+G
+0000
+11
+00001111
+11222222
+2102020121201
+2"
+
+5. "Principles of AI (Planning)
+8. Heuristics on Relaxed Planning Graph
+William Davidson Faculty of Industrial Engineering and Management
+Technion - Israel Institute of Technology
+Sliding Tile Puzzle 2X2
+P =
+
+
+
+11,1, 11,2, 12,1, 12,2,
+21,1, 21,2, 22,1, 22,2,
+31,1, 31,2, 32,1, 32,2,
+b1,1, b1,2, b2,1, b2,2
+
+
+
+O =
+
+
+
+U(12,1),U(12,2),U(22,1),U(22,2),U(32,1),U(32,2),
+D(11,1), D(11,2), D(21,1), D(21,2), D(31,1), D(31,2),
+L(11,2), L(12,2), L(21,2), L(22,2), L(31,2), L(32,2),
+R(11,1), R(12,1), R(21,1), R(22,1), R(31,1), R(32,1),
+
+
+
+I = {31,1, 21,2, 12,2, b2,1}
+G = {11,1, 21,2, 32,1}
+Sliding Tile Puzzle: Operators
+U(12,1) = h{b1,1, 12,1}, {b2,1, 11,1}, {b1,1, 12,1}i
+U
++(12,1) = h{b1,1, 12,1}, {b2,1, 11,1}, ∅i
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+11
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+11
+00001111
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+11
+00001111
+11223333
+Sliding Tile Puzzle:
+hadd
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+11
+00001111
+11223333
+3102020131201
+Sliding Tile Puzzle:
+hadd = 4
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+0000
+11
+00001111
+11223333
+3102020131201
+4
+Sliding Tile Puzzle: h
+F F — Justified Nodes
+Justified Action Node
+We say that an action node is justified if all its true immediate
+predecessors are marked.
+Justified Proposition Node
+We say that a proposition node is justified if at least one of its
+immediate predecessors is marked.
+Sliding Tile Puzzle: h
+F F — Marking Rules
+Apply these rules until all marked nodes are justified
+1 Mark all immediate predecessors of a marked unjustified
+ACTION node.
+2 Mark the immediate predecessor of a marked unjustified
+PROP node with only one immediate predecessor.
+3 Mark an immediate predecessor of a marked unjustified
+PROP node connected via an idle arc.
+4 Mark any immediate predecessor of a marked unjustified
+PROP node.
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+G
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+M
+M
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+M
+M
+MM
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+M
+M
+MM
+M
+MM
+Sliding Tile Puzzle:
+h
+F F
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+M
+M
+MM
+M
+MM
+MMM
+Sliding Tile Puzzle:
+h
+F F = 3
+a
+0
+b
+0
+c
+0
+d
+0
+e
+0
+f
+0
+g
+0
+h
+0
+i
+0
+j
+0
+k
+0
+l
+0m0 n0o0p0
+a
+1
+b
+1
+c
+1
+d
+1
+e
+1
+f
+1
+g
+1
+h
+1
+i
+1
+j
+1
+k
+1
+l
+1m
+1
+n
+1
+o
+1
+p
+1
+a
+1
+a
+2
+a
+2
+b
+2
+c
+2
+d
+2
+e
+2
+f
+2
+g
+2
+h
+2
+i
+2
+j
+2
+k
+2
+l
+2m2 n2o2p2
+a
+1
+a
+2
+a
+3
+a
+4
+a
+5
+a
+6
+a
+7
+a
+8
+MG
+MMM
+M
+M
+MM
+M
+MM
+MMM
+M"
+
+6. "AI – Tutorial 8
+Propositional Logic
+Resolution + DPLL
+Slides adapted from Alex Tuisov and edited by Dvir Twito
+Propositional Logic
+ A system that is built based on logical expressions.
+ Our focus: Zeroth-order logic.
+ No Quantifiers.
+Definitions
+ Building blocks: Symbols.
+ Can be True or False.
+ p, q, r, …
+ Symbols create literals.
+ Positive literal is a symbol.
+ p, q, r, …
+ Negative literal is a negated symbol.
+ ¬p, ¬q, ¬r, …
+Definitions – Cont.
+ Literals create clauses.
+ Conjunction (and): p ⋀ q
+ Disjunction (or): p ⋁ q
+ Implication: p → q, q ← p
+ If and only if (iff): p ↔ q
+Definitions – Cont.
+ Clauses create formula.
+ (p ⋁ q) ↔ (¬q → r)
+ (¬p → r) ↔ (¬r → p) ⋀ (q ⋁ r)
+Horn Form
+ Every clause contains one of:
+ A single symbol.
+ An implication of the form (conjunction of symbols) → symbol.
+ No negations – only positive literals.
+ Not every zeroth-order logic formula can be converted
+into Horn form.
+Modus Ponens
+ Rule of inference.
+ If we know that p → q, and that p is True, what can
+we infer?
+ We can infer q.
+ Complete for Horn Form knowledge bases.
+ Can be used to perform inference in linear time.
+ Disadvantages?
+ Not every logic formula can be converted into Horn
+form.
+CNF
+ Conjunctive Normal Form.
+ Every clause contains only “or” between literals.
+ All clauses have “and” between them.
+ Simply: “And between Ors”
+ Examples:
+ p ⋁ q
+ p ⋀ q
+ (p ⋁ q) ⋀ (¬q ⋁ r ⋁ ¬s) ⋀ (a)
+CNF – Cont.
+ Every zeroth-order logic formula can be converted
+into CNF.
+ The conversion is based on logical equivalences:
+ Double negation elimination.
+ ¬(¬p) ≡ p
+ De Morgan's laws.
+ ¬(p ⋁ q) ≡ ¬p ⋀ ¬q
+ ¬(p ⋀ q) ≡ ¬p ⋁ ¬q
+ Distributive law.
+ p ⋁ (q ⋀ r) ≡ (p ⋁ q) ⋀ (p ⋁ r)
+CNF – Cont.
+ More logical equivalences:
+ Implication.
+ p → q ≡ ¬p ⋁ q
+ If and only if.
+ p ↔ q ≡ (p → q) ⋀ (q → p)
+SAT
+ Propositional satisfiability problem.
+ Given a formula, can we find an assignment that
+satisfies it?
+ NP-Complete problem 😔.
+ We are still trying to solve it as quickly as possible.
+SAT – Cont.
+ What is the naïve approach to solve the problem?
+ Can we do better?
+ If you can find an asymptotically better solution you can win
+a one-million-dollar price!
+(Just tell me before)
+Resolution
+ Rule of inference.
+ In general:
+ Given: (x ⋁ A) ⋀ (¬x ⋁ B)
+ We can infer: A ⋁ B
+ Problem: We had two small clauses, now we have one
+big one (A, B could be big).
+ Unit Resolution:
+ Given: (x) Λ (¬x ⋁ B)
+ We can infer: B.
+Resolution
+ Complete for CNF knowledge bases.
+ Does it complete for every knowledge base?
+Resolution – Example
+ You are given the following knowledge base:
+ KB = (¬p ⋁ q ⋁ r) ⋀ (p ⋁ r ⋁ s) ⋀ (¬p ⋁ ¬q).
+ Can you prove/disprove the clause r ⋁ s ?
+ I.e, does KB ⊨ (r ⋁ s) ?
+ Davis–Putnam–Logemann–Loveland Algorithm.
+ Helps solve SAT problem fast (on average).
+ Uses two simple rules:
+ Unit propagation:
+ If a clause contains only a single unassigned literal, this
+clause can only be satisfied by assigning the necessary
+value to make this literal true.
+ Pure literal elimination:
+ If a symbol occurs with only one polarity in the formula, it
+is called pure, and can always be assigned in a way that
+makes all clauses containing it true.
+DPLL Algorithm
+function DPLL(Φ):
+if Φ is a consistent set of literals then:
+return true;
+if Φ contains an empty clause then:
+return false;
+for every unit clause C in Φ do:
+Φ = unit-propagate(C, Φ);
+for every literal ltrl that occurs pure in Φ do:
+Φ = pure-literal-assign(ltrl, Φ);
+ltrl ≔ choose-literal(Φ);
+return DPLL(Φ Λ not(ltrl)) or DPLL(Φ Λ ltrl);
+DPLL – Pseudo Code
+False (left)
+True (right)
+Branching
+Pure symbol
+Unit clause
+DPLL – Legend
+C1:(a ⋁ b)
+C2:(¬a ⋁ ¬b)
+C3:(a ⋁ ¬c)
+C4:(c ⋁ d ⋁ e)
+C5:(d ⋁ ¬e)
+C6:(¬d ⋁ ¬f)
+C7:(f ⋁ e)
+C8:(¬f ⋁ ¬e)
+a Pure Symbol ?
+b Yes, No pure symbol b in C1 is pure
+Unit Clause?
+Yes C3 is an unit
+clause
+c
+No unit clause
+d
+C4 is a unit clause
+e
+C5 is unsatisfied,
+Early termination
+Backtrack upto the
+last branching:
+d = false
+DPLL – Example
+Branching
+Pure symbol
+Unit clause
+False (left)
+True (right)
+C1:(a ⋁ b)
+C2:(¬a ⋁ ¬b)
+C3:(a ⋁ ¬c)
+C4:(c ⋁ d ⋁ e)
+C5:(d ⋁ ¬e)
+C6:(¬d ⋁ ¬f)
+C7:(f ⋁ e)
+C8:(¬f ⋁ ¬e)
+a
+b
+c
+d C6 is an unit
+f
+clause
+e is pure
+e
+Formula
+Satisfied!
+DPLL – Example
+Branching
+Pure symbol
+Unit clause
+False (left)
+True (right)
+ Find a satisfying assignment (if one exists) using
+DPLL.
+ (¬a ⋁ b)
+ (¬a ⋁ ¬b ⋁ c)
+ (¬c ⋁ d ⋁ ¬e)
+ (a ⋁ c)
+ (¬d ⋁ ¬f)
+ (a ⋁ c)
+ (e ⋁ ¬f)
+DPLL – Exercise
+ Next week we will learn how to represent a
+deterministic planning problem as a logical formula.
+ Once we do it, we can use DPLL in order to solve a
+(SAT planning).
+"
+
+7. "Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Introduction to AI
+Planning via SAT: Encodings
+William Davidson Faculty of Industrial Engineering and Management
+Technion - Israel Institute of Technology
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Outline 1 Planning as SAT 2 Linear Encoding
+Notation
+Encoding
+Example
+3 Parallel Encoding
+Notation
+Encoding
+Example
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Example Task
+Logistics Task with
+truck: T
+package: A
+locations: L,R
+Atoms: P = {AL, AR, AT, TL, TR}
+Actions: A = {DRL, DLR, LR, LL, UR, UL}
+LL = h{AL, TL}, {AT}, {AL}i
+UL = h{TL, AT}, {AL}, {AT}i
+DLR = h{TL}, {TR}, {TL}i
+Initial state: I = {AL, TL}
+Goal: G = {AR}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Outline 1 Planning as SAT 2 Linear Encoding
+Notation
+Encoding
+Example
+3 Parallel Encoding
+Notation
+Encoding
+Example
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Notation
+Input
+Planning task Π = hP, A, I, Gi
+Bound b and time steps 0 ≤ t ≤ b
+Decision variables
+pt — for all p ∈ P, 0 ≤ t ≤ b
+at — for all a ∈ AN , 0 ≤ t ≤ b − 1
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Basic Linear Encoding (1)
+Initial State Clauses
+Specify initial state
+for all p ∈ P : {p0} if p ∈ I, and {¬p0}, otherwise
+Goal Clauses
+Specify goal values
+for all p ∈ G : {pb}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Basic Linear Encoding (2)
+Action Precondition Clauses
+Action implies its preconditions
+for all a ∈ A, p ∈ pre(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt}
+Action Effect Clauses
+Action implies its add/delete effects
+for all a ∈ A, p ∈ add(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt+1}
+for all a ∈ A, p ∈ del(a), 0 ≤ t ≤ b − 1 : {¬at
+, ¬pt+1}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Basic Linear Encoding (3)
+Positive Frame Axioms
+If a is applied, and p 6∈ del(a) was true, then p is still true
+for all a ∈ A, p 6∈ del(a), 0 ≤ t ≤ b − 1 : {¬at
+, ¬pt
+, pt+1}
+Negative Frame Axioms
+If a is applied, and p 6∈ add(a) was false, then p is still false
+for all a ∈ A, p 6∈ add(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt
+, ¬pt+1}
+Linearity (exclusion) Constraints
+Apply exactly one action at each time step
+for all a, a0 ∈ A, 0 ≤ t ≤ b − 1 : {¬at
+, ¬a
+0
+t}
+for all 0 ≤ t ≤ b − 1 : {a
+1
+t
+, a2
+t
+, . . .}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Initial State (b=1)
+Initial State Clauses
+for all p ∈ P : {p0} if p ∈ I, and {¬p0}, otherwise
+Initial State - Example Task
+Initial state: I = {AL, TL}
+P = {AL, AR, AT, TL, TR}
+Initial State Clauses - Example Task
+{AL0}, {¬AR0}, {¬AT0}, {TL0}, {¬TR0}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Goal (b=1)
+Goal Clauses
+for all p ∈ G : {pb}
+Goal - Example Task
+G = {AR}
+Goal Clauses - Example Task
+{AR1}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Action Precondition (b=1)
+Action Precondition Clauses
+for all a ∈ A, p ∈ pre(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt}
+Action Preconditions - Example Task
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Action Precondition Clauses - Example Task
+{¬LR0, AR0}, {¬LR0, TR0}, {¬LL0, AL0}, {¬LL0, TL0},
+{¬UR0, AT0}, {¬UR0, TR0}, {¬UL0, AT0}, {¬UL0, TL0},
+{¬DRL0, TR0}, {¬DLR0, TL0},
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Action Effects (b=1)
+Action Effect Clauses
+for all a ∈ A, p ∈ add(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt+1}
+for all a ∈ A, p ∈ del(a), 0 ≤ t ≤ b − 1 : {¬at
+, ¬pt+1}
+Action Effects - Example Task
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Action Effect Clauses - Example Task
+{¬LR0, AT1}, {¬LR0, ¬AR1}, {¬LL0, AT1}, {¬LL0, ¬AL1},
+{¬UR0, AR1}, {¬UR0, ¬AT1}, {¬UL0, AL1}, {¬UL0, ¬AT1},
+{¬DRL0, TL1}, {¬DRL0, ¬TR1}, {¬DLR0, TR1},
+{¬DLR0, ¬TL1}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Positive Frame Axioms (b=1)
+Positive Frame Axiom Clauses
+for all a ∈ A, p 6∈ del(a), 0 ≤ t ≤ b − 1 : {¬at
+, ¬pt
+, pt+1}
+Positive Frame Axioms - Example Task
+P = {AL, AR, AT, TL, TR}
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Positive Frame Axiom Clauses - Example Task
+{¬LL0, ¬AR0, AR1}, {¬LL0, ¬AT0, AT1}, {¬LL0, ¬TL0, TL1},
+{¬LL0, ¬TR0, TR1}, {¬LR0, ¬AL0, AL1}, {¬LR0, ¬AT0, AT1},
+{¬LR0, ¬TL0, TL1}, {¬LR0, ¬TR0, TR1}, {¬UL0, ¬AR0, AR1},
+{¬UL0, ¬AL0, AL1}, {¬UL0, ¬TL0, TL1}, {¬UL0, ¬TR0, TR1},
+{¬UR0, ¬AR0, AR1}, {¬UR0, ¬AL0, AL1}, {¬UR0, ¬TL0, TL1},
+{¬UR0, ¬TR0, TR1}, {¬DLR0, ¬AR0, AR1}, {¬DLR0, ¬AL0, AL1},
+{¬DLR0, ¬AT0, AT1}, {¬DLR0, ¬TR0, TR1}, {¬DRL0, ¬AR0, AR1},
+{¬DRL0, ¬AL0, AL1}, {¬DRL0, ¬AT0, AT1}, {¬DRL0, ¬TR0, TL1}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Negative Frame Axioms (b=1)
+Negative Frame Axiom Clauses
+for all a ∈ A, p 6∈ add(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt
+, ¬pt+1}
+Negative Frame Axioms - Example Task
+P = {AL, AR, AT, TL, TR}
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Negative Frame Axiom Clauses - Example Task
+{¬LL0, AR0, ¬AR1}, {¬LL0, AL0, ¬AL1}, {¬LL0, TL0, ¬TL1},
+{¬LL0, TR0, ¬TR1}, {¬LR0, AL0, ¬AL1}, {¬LR0, AR0, ¬AR1},
+{¬LR0, TL0, ¬TL1}, {¬LR0, TR0, ¬TR1}, {¬UL0, AR0, ¬AR1},
+{¬UL0, AT0, ¬AT1}, {¬UL0, TL0, ¬TL1}, {¬UL0, TR0, ¬TR1},
+{¬UR0, AL0, ¬AL1}, {¬UR0, AT0, ¬AT1}, {¬UR0, TL0, ¬TL1},
+{¬UR0, TR0, ¬TR1}, {¬DLR0, AR0, ¬AR1}, {¬DLR0, AL0, ¬AL1},
+{¬DLR0, AT0, ¬AT1}, {¬DLR0, TL0, ¬TL1}, {¬DRL0, AR0, ¬AR1},
+{¬DRL0, AL0, ¬AL1}, {¬DRL0, AT0, ¬AT1}, {¬DRL0, TR0, ¬TR1}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Linearity Constraints (b=1)
+Linearity (exclusion) Constraint Clauses
+for all a, a0 ∈ A, 0 ≤ t ≤ b − 1 : {¬at
+, ¬a
+0
+t}
+for all 0 ≤ t ≤ b − 1 : {a
+1
+t
+, a2
+t
+, . . .}
+Linearity (exclusion) Constraints - Example Task
+A = {LL, LR, UL, UR, DLR, DRL}
+Linearity (exclusion) Constraint Clauses - Example Task
+{¬LL0, ¬LR0}, {¬LL0, ¬UL0}, {¬LL0, ¬UR0}, {¬LL0, ¬DLR0},
+{¬LL0, ¬DRL0}, {¬LR0 ¬UL0}, {¬LR0 ¬UR0}, {¬LR0 ¬DLR0},
+{¬LR0 ¬DRL0}, {¬UL0 ¬UR0}, {¬UL0 ¬DLR0}, {¬UL0 ¬DRL0},
+{¬UR0 ¬DLR0}, {¬UR0 ¬DRL0}, {¬DLR0 ¬DRL0}
+{LL0, LR0, UL0, UR0, DLR0, DRL0}
+Planning as
+SAT
+Linear
+Encoding
+Notation
+Encoding
+Example
+Parallel
+Encoding
+Linear Encoding - Example Task (b=1)
+{AL0}, {¬AR0}, {¬AT0}, {TL0}, {¬TR0}
+{AR1}
+{¬LR0, AR0}, {¬LR0, TR0}, {¬LL0, AL0}, {¬LL0, TL0}, {¬UR0, AT0},
+{¬UR0, TR0}, {¬UL0, AT0}, {¬UL0, TL0}, {¬DRL0, TR0}, {¬DLR0, TL0},
+{¬LR0, AT1}, {¬LR0, ¬AR1}, {¬LL0, AT1}, {¬LL0, ¬AL1}, {¬UR0, AR1},
+{¬UR0, ¬AT1}, {¬UL0, AL1}, {¬UL0, ¬AT1}, {¬DRL0, TL1}, {¬DRL0, ¬TR1},
+{¬DLR0, TR1}, {¬DLR0, ¬TL1}
+{¬LL0, ¬AR0, AR1}, {¬LL0, ¬AT0, AT1}, {¬LL0, ¬TL0, TL1},
+{¬LL0, ¬TR0, TR1}, {¬LR0, ¬AL0, AL1}, {¬LR0, ¬AT0, AT1},
+{¬LR0, ¬TL0, TL1}, {¬LR0, ¬TR0, TR1}, {¬UL0, ¬AR0, AR1},
+{¬UL0, ¬AL0, AL1}, {¬UL0, ¬TL0, TL1}, {¬UL0, ¬TR0, TR1},
+{¬UR0, ¬AR0, AR1}, {¬UR0, ¬AL0, AL1}, {¬UR0, ¬TL0, TL1},
+{¬UR0, ¬TR0, TR1}, {¬DLR0, ¬AR0, AR1}, {¬DLR0, ¬AL0, AL1},
+{¬DLR0, ¬AT0, AT1}, {¬DLR0, ¬TR0, TR1}, {¬DRL0, ¬AR0, AR1},
+{¬DRL0, ¬AL0, AL1}, {¬DRL0, ¬AT0, AT1}, {¬DRL0, ¬TR0, TL1}
+{¬LL0, AR0, ¬AR1}, {¬LL0, AL0, ¬AL1}, {¬LL0, TL0, ¬TL1},
+{¬LL0, TR0, ¬TR1}, {¬LR0, AL0, ¬AL1}, {¬LR0, AR0, ¬AR1},
+{¬LR0, TL0, ¬TL1}, {¬LR0, TR0, ¬TR1}, {¬UL0, AR0, ¬AR1},
+{¬UL0, AT0, ¬AT1}, {¬UL0, TL0, ¬TL1}, {¬UL0, TR0, ¬TR1},
+{¬UR0, AL0, ¬AL1}, {¬UR0, AT0, ¬AT1}, {¬UR0, TL0, ¬TL1},
+{¬UR0, TR0, ¬TR1}, {¬DLR0, AR0, ¬AR1}, {¬DLR0, AL0, ¬AL1},
+{¬DLR0, AT0, ¬AT1}, {¬DLR0, TL0, ¬TL1}, {¬DRL0, AR0, ¬AR1},
+{¬DRL0, AL0, ¬AL1}, {¬DRL0, AT0, ¬AT1}, {¬DRL0, TR0, ¬TR1}
+{¬LL0, ¬LR0}, {¬LL0, ¬UL0}, {¬LL0, ¬UR0}, {¬LL0, ¬DLR0},
+{¬LL0, ¬DRL0}, {¬LR0 ¬UL0}, {¬LR0 ¬UR0}, {¬LR0 ¬DLR0},
+{¬LR0 ¬DRL0}, {¬UL0 ¬UR0}, {¬UL0 ¬DLR0}, {¬UL0 ¬DRL0},
+{¬UR0 ¬DLR0}, {¬UR0 ¬DRL0}, {¬DLR0 ¬DRL0}
+{LL0, LR0, UL0, UR0, DLR0, DRL0}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Outline 1 Planning as SAT 2 Linear Encoding
+Notation
+Encoding
+Example
+3 Parallel Encoding
+Notation
+Encoding
+Example
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Notation
+Input
+Planning task Π = hP, A, I, Gi
+Noop extended actions set AN (Noop(p) = h{p}, {p}, {}i)
+Bound b and time steps 0 ≤ t ≤ b
+a | a
+0 denote that a and a’ are non-interfering
+Decision variables
+pt — for all p ∈ P, 0 ≤ t ≤ b
+at — for all a ∈ AN , 0 ≤ t ≤ b − 1
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Interfering Actions
+A pair of Strips actions a1 6= a2 interfere if
+del(a1) ∩ (pre(a2) ∪ add(a2)) 6= ∅, or
+del(a2) ∩ (pre(a1) ∪ add(a1)) 6= ∅.
+Some interfering actions:
+DLR and LL: TL ∈ del(DLR) ∩ pre(LL)
+UL and LL: AT ∈ del(UL) ∩ add(LL)
+Some non-interfering actions:
+DLR and LR
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Example Task with NOOPS
+Logistics Task with NOOPS
+truck: T
+package: A
+locations: L,R
+Atoms: P = {AL, AR, AT, TL, TR}
+Actions: AN = {DRL, DLR, LR, LL, UR, UL,
+Noop(AL), Noop(AR), Noop(AT),
+Noop(TL), Noop(TR)}
+LL = h{AL, TL}, {AT}, {AL}i
+UL = h{TL, AT}, {AL}, {AT}i
+DLR = h{TL}, {TR}, {TL}i
+Noop(AL) = h{AL}, {AL}, {}i
+Initial state: I = {AL, TL}
+Goal: G = {AR}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Basic Parallel Encoding (1)
+Initial State Clauses
+Specify initial state
+for all p ∈ P : {p0} if p ∈ I, and {¬p0}, otherwise
+Goal Clauses
+Specify goal values
+for all p ∈ G : {pb}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Basic Parallel Encoding (2)
+Action Precondition Clauses
+Action implies its preconditions
+for all a ∈ AN , p ∈ pre(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt}
+Action Interference Clauses
+Do not apply interfering actions at the same time step
+for all a, a0 ∈ AN , a 6 | a
+0
+, 0 ≤ t ≤ b − 1 : {¬at
+, ¬a
+0
+t}
+Fact Achievement Clauses
+Fact implies disjunction of its achievers
+for all p ∈ P, 1 ≤ t ≤ b : {¬pt} ∪ {at−1 | p ∈ add(a)}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Parallel Encoding - Initial State (b=1)
+Initial State Clauses
+for all p ∈ P : {p0} if p ∈ I, and {¬p0}, otherwise
+Initial State - Example Task
+Initial state: I = {AL, TL}
+P = {AL, AR, AT, TL, TR}
+Initial State Clauses - Example Task
+{AL0}, {¬AR0}, {¬AT0}, {TL0}, {¬TR0}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Parallel Encoding - Goal (b=1)
+Goal Clauses
+for all p ∈ G : {pb}
+Goal - Example Task
+G = {AR}
+Goal Clauses - Example Task
+{AR1}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Parallel Encoding - Action Precondition (b=1)
+Action Precondition Clauses
+for all a ∈ AN , p ∈ pre(a), 0 ≤ t ≤ b − 1 : {¬at
+, pt}
+Action Preconditions - Example Task
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Noop(AL) = h{AL}, {AL}, {}i
+Action Precondition Clauses - Example Task
+{¬LR0, AR0}, {¬LR0, TR0}, {¬LL0, AL0}, {¬LL0, TL0},
+{¬UR0, AT0}, {¬UR0, TR0}, {¬UL0, AT0}, {¬UL0, TL0},
+{¬DRL0, TR0}, {¬DLR0, TL0}, {¬Noop(AL)0, AL0},
+{¬Noop(AR)0, AR0}, {¬Noop(AT)0, AT0}, {¬Noop(TL)0, TL0},
+{¬Noop(TR)0, TR0}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Parallel Encoding - Action Interference (b=1)
+Action Interference Clauses
+for all a, a0 ∈ AN , a 6 | a
+0
+, 0 ≤ t ≤ b − 1 : {¬at
+, ¬a
+0
+t}
+Action Interference - Example Task
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+Noop(AL) = h{AL}, {AL}, {}i
+Action Interference Clauses - Example Task
+{¬DLR0, ¬DRL0}, {¬DLR0, ¬LL0}, {¬DLR0, ¬UL0},
+{¬DLR0, ¬Noop(TL)0}, {¬DRL0, ¬LR0}, {¬DRL0, ¬UR0},
+{¬DRL0, ¬Noop(TR)0}, {¬LL0, ¬UL0}, {¬LL0, ¬UR0},
+{¬LL0, ¬Noop(AL)0}, {¬LR0, ¬UL0}, {¬LR0, ¬UR0},
+{¬LR0, ¬Noop(AR)0}, {¬UL0, ¬UR0}, {¬UL0, ¬Noop(AT)0},
+{¬UR0, ¬Noop(AT)0}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Parallel Encoding - Fact Achievement (b=1)
+Fact Achievement Clauses
+for all p ∈ P, 1 ≤ t ≤ b : {¬pt} ∪ {at−1 | p ∈ add(a)}
+Fact Achievement - Example Task
+DLR = h{TL}, {TR}, {TL}i, DRL = h{TR}, {TL}, {TR}i
+LL = h{AL, TL}, {AT}, {AL}i, LR = h{AR, TR}, {AT}, {AR}i
+UL = h{TL, AT}, {AL}, {AT}i, UR = h{TR, AT}, {AR}, {AT}i
+Noop(AL) = h{AL}, {AL}, {}i
+Fact Achievement - Example Task
+{¬AL1, UL0, Noop(AL)0}, {¬AR1, UR0, Noop(AR)0},
+{¬AT1, LL0, LR0, Noop(AT)0}, {¬TL1, DRL0, Noop(TL)0},
+{¬TR1, DLR0, Noop(TR)0}
+Planning as
+SAT
+Linear
+Encoding
+Parallel
+Encoding
+Notation
+Encoding
+Example
+Example Task - Basic Parallel Encoding (b=1)
+{AL0}, {¬AR0}, {¬AT0}, {TL0}, {¬TR0}
+{AR1}
+{¬LR0, AR0}, {¬LR0, TR0}, {¬LL0, AL0}, {¬LL0, TL0},
+{¬UR0, AT0}, {¬UR0, TR0}, {¬UL0, AT0}, {¬UL0, TL0},
+{¬DRL0, TR0}, {¬DLR0, TL0}, {¬Noop(AL)0, AL0},
+{¬Noop(AR)0, AR0}, {¬Noop(AT)0, AT0}, {¬Noop(TL)0, TL0},
+{¬Noop(TR)0, TR0}
+{¬DLR0, ¬DRL0}, {¬DLR0, ¬LL0}, {¬DLR0, ¬UL0},
+{¬DLR0, ¬Noop(TL)0}, {¬DRL0, ¬LR0}, {¬DRL0, ¬UR0},
+{¬DRL0, ¬Noop(TR)0}, {¬LL0, ¬UL0}, {¬LL0, ¬UR0},
+{¬LL0, ¬Noop(AL)0}, {¬LR0, ¬UL0}, {¬LR0, ¬UR0},
+{¬LR0, ¬Noop(AR)0}, {¬UL0, ¬UR0}, {¬UL0, ¬Noop(AT)0},
+{¬UR0, ¬Noop(AT)0}
+{¬AL1, UL0, Noop(AL)0}, {¬AR1, UR0, Noop(AR)0},
+{¬AT1, LL0, LR0, Noop(AT)0}, {¬TL1, DRL0, Noop(TL)0},
+{¬TR1, DLR0, Noop(TR)0}"
+
+is the modeling in my code enough? is it possible to add more variables to the modeling of the problem, to further improve the modeling of the problem, and to do logical inference more easily when choosing the right actions:
+
+###***######***######***######***###
+
+# ex2.py
+
+ids = ['123456789']  # Replace with your ID(s)
+
+import math
+from collections import deque
+from utils import Expr, Symbol  # Import Expr and Symbol for logical expressions
+
+class GringottsController:
+    def __init__(self, map_shape, harry_loc, initial_observations):
+        """
+        Controller initialization.
+        """
+        self.rows, self.cols = map_shape
+        self.harry_loc = harry_loc
+        self.turn_count = 0
+
+        # Initialize beliefs with uppercase symbols
+        self.Trap_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
+        self.Dragon_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
+        self.Vault_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
+
+        # Mark starting cell as definitely not a Trap and not a Dragon
+        r0, c0 = harry_loc
+        self.Trap_beliefs[r0][c0] = False
+        self.Dragon_beliefs[r0][c0] = False
+
+        # Keep track of vaults already "collected" but discovered to be wrong
+        self.collected_wrong_vaults = set()
+
+        # Store constraints
+        self.obs_constraints = []
+
+        # Incorporate any initial observations
+        self.update_with_observations(initial_observations)
+
+        # Queue of planned actions
+        self.current_plan = deque()
+
+        # Memory of visited cells
+        self.visited = set()
+        self.visited.add(harry_loc)  # Add starting location
+
+    def get_next_action(self, observations):
+        """
+        Decide on the next action with uppercase symbols.
+        """
+        self.turn_count += 1
+
+        # 1) Update knowledge base with new constraints
+        self.update_with_observations(observations)
+
+        # 2) Solve the knowledge base for the most up-to-date assignment
+        self.run_inference()
+
+        # Debug: Print current beliefs
+        print(f"Turn {self.turn_count}: Current Vault Beliefs: {self.Vault_beliefs}")
+        print(f"Turn {self.turn_count}: Current Trap Beliefs: {self.Trap_beliefs}")
+        print(f"Turn {self.turn_count}: Current Dragon Beliefs: {self.Dragon_beliefs}")
+
+        # 3) Identify all definite Vaults
+        definite_vaults = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs[r][c] is True:
+                    definite_vaults.append((r, c))
+
+        # 4) If we are on a Vault, try to collect it
+        if (self.harry_loc in definite_vaults) and (self.harry_loc not in self.collected_wrong_vaults):
+            action = ("collect",)
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            return action
+
+        # 5) If any definite Vault exists and we are not on it, re-plan path to it
+        if definite_vaults:
+            # For simplicity, choose the first definite Vault found
+            target_vault = definite_vaults[0]
+
+            # Plan a path to the target Vault
+            path = self.bfs_path(self.harry_loc, target_vault)
+
+            if path and path != [self.harry_loc]:
+                # Convert the path to a series of "move" actions
+                moves = []
+                current = self.harry_loc
+                for step in path:
+                    if step != current:
+                        moves.append(("move", step))
+                        current = step
+                self.current_plan = deque(moves)
+
+        # 6) If there's a known Trap adjacent, let's destroy it
+        destroy_target = self.find_adjacent_definite_trap()
+        if destroy_target:
+            action = ("destroy", destroy_target)
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            return action
+
+        # 7) If there's a planned action from previous turns, execute it
+        if self.current_plan:
+            action = self.current_plan.popleft()
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            # Update Harry's location if the action is a move
+            if action[0] == "move":
+                self.harry_loc = action[1]
+                self.visited.add(action[1])  # Mark the new cell as visited
+            return action
+
+        # 8) Plan a path to a goal (Vault or safe cell)
+        path = self.plan_path_to_goal()
+        if not path:
+            # If no path found, perform a "wait" as a fallback
+            action = ("wait",)
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            return action
+
+        # Check if the path leads to the current location (implies we are on a goal)
+        if path[-1] == self.harry_loc:
+            # We are already at the goal, perform "collect" if possible
+            if self.Vault_beliefs[r][c] is True:
+                action = ("collect",)
+                print(f"Turn {self.turn_count}: Action selected: {action}")
+                return action
+
+        # Convert the path to a series of "move" actions
+        moves = []
+        current = self.harry_loc
+        for step in path:
+            if step != current:
+                moves.append(("move", step))
+                # Simulate Harry's movement in planning to prevent redundant moves
+                current = step
+        self.current_plan = deque(moves)
+
+        # Return the next action from the plan
+        if self.current_plan:
+            action = self.current_plan.popleft()
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            # Update Harry's location if the action is a move
+            if action[0] == "move":
+                self.harry_loc = action[1]
+                self.visited.add(action[1])  # Mark the new cell as visited
+            return action
+        else:
+            action = ("wait",)
+            print(f"Turn {self.turn_count}: Action selected: {action}")
+            return action
+
+    # -------------------------------------------------------------------------
+    # Observation-based constraints
+    # -------------------------------------------------------------------------
+
+    def update_with_observations(self, obs_list):
+        """
+        Update beliefs based on observations using uppercase symbols.
+        """
+        # Mark Vault/Dragon if observed
+        sulfur_detected = False
+        for obs in obs_list:
+            if obs[0] == "vault":
+                (vr, vc) = obs[1]
+                self.Vault_beliefs[vr][vc] = True
+                self.Dragon_beliefs[vr][vc] = False
+            elif obs[0] == "dragon":
+                (dr, dc) = obs[1]
+                self.Dragon_beliefs[dr][dc] = True
+                self.Vault_beliefs[dr][dc] = False
+            elif obs[0] == "sulfur":
+                sulfur_detected = True
+            elif obs[0] == "trap":
+                (tr, tc) = obs[1]
+                self.Trap_beliefs[tr][tc] = True
+
+        # Update sulfur constraints
+        self.remove_old_sulfur_constraint_for_cell(self.harry_loc)
+        if sulfur_detected:
+            # sum of Trap among neighbors >= 1
+            self.obs_constraints.append(("SULFUR+", self.harry_loc))
+        else:
+            # sum of Trap among neighbors == 0
+            self.obs_constraints.append(("SULFUR0", self.harry_loc))
+
+    def remove_old_sulfur_constraint_for_cell(self, cell):
+        """Keep only the most recent sulfur constraint for a cell."""
+        newlist = []
+        for c in self.obs_constraints:
+            ctype, ccell = c
+            if ccell != cell:
+                newlist.append(c)
+        self.obs_constraints = newlist
+
+    # -------------------------------------------------------------------------
+    # Logic solver: Backtracking with constraints
+    # -------------------------------------------------------------------------
+
+    def run_inference(self):
+        """
+        Perform backtracking to infer definite truths about the grid.
+        """
+        # 1) Gather all cells that remain None for Trap or Dragon or Vault
+        partial_solution = self._snapshot_current_beliefs()
+        cells_to_assign = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                # Trap
+                if self.Trap_beliefs[r][c] is None:
+                    cells_to_assign.append(("Trap", r, c))
+                # Dragon
+                if self.Dragon_beliefs[r][c] is None:
+                    cells_to_assign.append(("Dragon", r, c))
+                # Vault
+                if self.Vault_beliefs[r][c] is None:
+                    cells_to_assign.append(("Vault", r, c))
+
+        solutions = []
+        max_solutions = 100  # Limit to prevent excessive computation
+        self.dpll_backtrack(partial_solution, cells_to_assign, 0, solutions, max_solutions)
+
+        if not solutions:
+            # Contradictory observations
+            return
+
+        # Compute "forced" booleans = same value in all solutions
+        merged = {}
+        for var in solutions[0]:
+            merged[var] = solutions[0][var]
+        for sol in solutions[1:]:
+            for var in sol:
+                if merged[var] != sol[var]:
+                    merged[var] = "UNSURE"
+
+        # Store the definite beliefs
+        for (kind, r, c), val in merged.items():
+            if val == "UNSURE":
+                pass  # remain None
+            else:
+                # True or False
+                if kind == "Trap":
+                    self.Trap_beliefs[r][c] = val
+                elif kind == "Dragon":
+                    self.Dragon_beliefs[r][c] = val
+                elif kind == "Vault":
+                    self.Vault_beliefs[r][c] = val
+
+    def dpll_backtrack(self, partial_sol, vars_list, index, solutions, max_solutions):
+        """
+        Depth-first backtracking search to find all consistent assignments.
+        Stops after finding max_solutions.
+        """
+        if len(solutions) >= max_solutions:
+            return  # Reached maximum number of solutions
+
+        if index >= len(vars_list):
+            # All variables assigned
+            solutions.append(dict(partial_sol))
+            return
+
+        varinfo = vars_list[index]
+        # varinfo = ("Trap"/"Dragon"/"Vault", r, c)
+        # If partial_sol already has a value, skip
+        if partial_sol[varinfo] is not None:
+            if self.check_constraints(partial_sol):
+                self.dpll_backtrack(partial_sol, vars_list, index + 1, solutions, max_solutions)
+            return
+        else:
+            for attempt in [False, True]:
+                partial_sol[varinfo] = attempt
+                if self.check_constraints(partial_sol):
+                    self.dpll_backtrack(partial_sol, vars_list, index + 1, solutions, max_solutions)
+                if len(solutions) >= max_solutions:
+                    return  # Early exit if limit reached
+            partial_sol[varinfo] = None  # Reset
+
+    def check_constraints(self, partial_sol):
+        """Check if the current partial assignment satisfies all constraints."""
+        # 1) Not both Dragon & Vault in the same cell
+        for r in range(self.rows):
+            for c in range(self.cols):
+                dval = partial_sol.get(("Dragon", r, c), None)
+                vval = partial_sol.get(("Vault", r, c), None)
+                if dval is True and vval is True:
+                    return False  # Conflict
+
+        # 2) SULFUR constraints
+        for (ctype, cell) in self.obs_constraints:
+            (rr, cc) = cell
+            neighbors = self.get_4_neighbors(rr, cc)
+            trap_sum = 0
+            unknown_count = 0
+            for (nr, nc) in neighbors:
+                tval = partial_sol.get(("Trap", nr, nc), None)
+                if tval is True:
+                    trap_sum += 1
+                elif tval is None:
+                    unknown_count += 1
+
+            if ctype == "SULFUR+":
+                # At least one Trap
+                if trap_sum == 0 and unknown_count == 0:
+                    return False
+            elif ctype == "SULFUR0":
+                # No Traps
+                if trap_sum > 0:
+                    return False
+
+        # 3) Exactly one Vault exists
+        vault_count = 0
+        for r in range(self.rows):
+            for c in range(self.cols):
+                vval = partial_sol.get(("Vault", r, c), None)
+                if vval is True:
+                    vault_count += 1
+                elif vval is None:
+                    pass  # Potential Vault
+
+        if vault_count > 1:
+            return False  # More than one Vault is invalid
+
+        # Additionally, if all cells are assigned and no Vault is present, invalidate
+        if vault_count == 0:
+            all_assigned = True
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Vault_beliefs[r][c] is None:
+                        all_assigned = False
+                        break
+            if all_assigned:
+                return False  # At least one Vault must exist
+
+        return True
+
+    def _snapshot_current_beliefs(self):
+        """
+        Create a snapshot of current beliefs for backtracking.
+        """
+        d = {}
+        for r in range(self.rows):
+            for c in range(self.cols):
+                d[("Trap", r, c)] = self.Trap_beliefs[r][c]
+                d[("Dragon", r, c)] = self.Dragon_beliefs[r][c]
+                d[("Vault", r, c)] = self.Vault_beliefs[r][c]
+        return d
+
+    # -------------------------------------------------------------------------
+    # Action selection logic
+    # -------------------------------------------------------------------------
+
+    def find_adjacent_definite_trap(self):
+        """Return the location of an adjacent Trap if known."""
+        (r, c) = self.harry_loc
+        for (nr, nc) in self.get_4_neighbors(r, c):
+            tval = self.Trap_beliefs[nr][nc]
+            if tval is True:
+                return (nr, nc)
+        return None
+
+    def calculate_vault_probabilities(self):
+        """
+        Calculate the probability of each cell containing a vault.
+        """
+        probabilities = [[0.1 for _ in range(self.cols)] for _ in range(self.rows)]  # Default probability for unknown cells
+
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs[r][c] is True:
+                    probabilities[r][c] = 1.0
+                elif self.Vault_beliefs[r][c] is False:
+                    probabilities[r][c] = 0.0
+                else:
+                    # Adjust probability based on whether the cell has been visited
+                    if (r, c) not in self.visited:
+                        probabilities[r][c] += 0.1  # Slightly higher probability for unvisited cells
+                    # You can further adjust this based on other factors if desired
+
+        return probabilities
+
+    def plan_path_to_goal(self):
+        """
+        Plan a path to a Vault or a safe cell based on vault probabilities and visited cells.
+        """
+        # 1. Calculate vault probabilities
+        vault_probs = self.calculate_vault_probabilities()
+
+        # 2. Identify candidate goals with their probabilities
+        goals = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs[r][c] is True:
+                    if (r, c) not in self.collected_wrong_vaults:
+                        goals.append(((r, c), 1.0))  # Definite vaults have probability 1
+                elif self.Vault_beliefs[r][c] is None:
+                    # Prefer unvisited cells by slightly increasing their probability
+                    prob = vault_probs[r][c]
+                    if (r, c) not in self.visited:
+                        prob += 0.1  # Boost probability for unvisited cells
+                    goals.append(((r, c), prob))  # Unknown cells have low probability
+
+        # 3. Sort goals by probability in descending order
+        goals.sort(key=lambda x: x[1], reverse=True)
+
+        # 4. If no Vaults known, explore safe cells with higher probability
+        if not goals:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Trap_beliefs[r][c] is False and self.Dragon_beliefs[r][c] is False:
+                        # Prefer unvisited cells by assigning higher probabilities
+                        if (r, c) not in self.visited:
+                            prob = 0.2  # Higher probability for unvisited safe cells
+                        else:
+                            prob = 0.1  # Lower probability for visited safe cells
+                        goals.append(((r, c), prob))
+
+        # 5. If still no goals, return None
+        if not goals:
+            return None
+
+        # 6. Select the goal with the highest probability
+        best_goal, best_prob = goals[0]
+
+        # 7. Plan a path to the best goal using BFS
+        return self.bfs_path(self.harry_loc, best_goal)
+
+    def bfs_path(self, start, goal):
+        """
+        Perform BFS to find a path from start to goal, avoiding known Traps and Dragons.
+        """
+        if start == goal:
+            return [start]
+        from collections import deque
+        visited = set()
+        queue = deque()
+        queue.append((start, [start]))
+        visited.add(start)
+
+        while queue:
+            (cur, path) = queue.popleft()
+            for nbd in self.get_4_neighbors(cur[0], cur[1]):
+                nr, nc = nbd
+                # Skip if Trap or Dragon is definitely present
+                if self.Trap_beliefs[nr][nc] is True:
+                    continue
+                if self.Dragon_beliefs[nr][nc] is True:
+                    continue
+                if nbd not in visited:
+                    visited.add(nbd)
+                    newp = path + [nbd]
+                    if nbd == goal:
+                        return newp
+                    queue.append((nbd, newp))
+        return None
+
+    def get_4_neighbors(self, r, c):
+        """Return up/down/left/right neighbors within grid boundaries."""
+        result = []
+        if r > 0:
+            result.append((r - 1, c))
+        if r < self.rows - 1:
+            result.append((r + 1, c))
+        if c > 0:
+            result.append((r, c - 1))
+        if c < self.cols - 1:
+            result.append((r, c + 1))
+        return result
+
+    def __repr__(self):
+        return "<GringottsController using enhanced heuristics for inference and action selection>"
+
+###***######***######***######***###
+
+What I need from you now:
+1. is the modeling in my code enough? is it possible to add more variables to the modeling of the problem, to further improve the modeling of the problem, and to do logical inference more easily when choosing the right actions:
+2. You should be using functions given in the utils.py file! There should be enough functions to utilize and implement all the ideas needed to solve the exercise.
+3. According to lecture, the exercise code should be based on knowledge base integration! to Utilize a more formal knowledge base to store and query logical relations between cells, enhancing inference capabilities beyond the belief matrices.
+This is important, from the lecture which was mentioned in my message, the inferences should be from the current knowledge base, consider the constraints, and also enlarge the knowledge base progressively based on the observations over time!
+Leveraging the PropKB or PropDefiniteKB from utils.py can significantly enhance your controller's inference capabilities. By representing observations and constraints formally within a KB, you can utilize established logical inference mechanisms to deduce the state of the environment more efficiently.
+4. Improve logical inference! It can be done through: a. constraint propogation (Implement constraint propagation techniques to deduce the state of cells immediately after updating beliefs, reducing the need for extensive backtracking.)
+5. The action selection should be enhanced in a way that: (and beside probability, offer an alternative approach as well maybe)
+5.1 Prioritize Safe Exploration
+5.2 Dynamic Goal Reassessment
+Continuously reassess goals based on new inferences to adapt to the evolving knowledge of the environment. There might be a few vaults with hallows in the map! and there will be!
+5.3 if it helps reducing the number of turns required to reach targets, Incorporate Orientation in Movement Decisions
+Use Harry's orientation to optimize movement actions
+6. Optimizing Inference Efficiency
+6.1 A. Limit Backtracking Depth
+Set a limit on the depth of backtracking to prevent excessive computation, especially in larger grids.
+6.2 Early Pruning
+Implement early pruning strategies to discard infeasible paths quickly based on current constraints.
+6.3 C. Incremental Inference Updates
+Instead of re-evaluating all constraints from scratch after each observation, update only the affected parts of the belief system.
+6.4 Utilize Heuristics in DPLL
+Incorporate heuristic-based variable ordering in your DPLL implementation to prioritize assignments that are more likely to lead to a solution, thereby reducing the search space and speeding up inference.
+7. Continuous Learning and Adaptation
+Implement mechanisms for the controller to learn from past actions and observations, refining its strategies over time. This adaptive approach can lead to more intelligent navigation and decision-making.
