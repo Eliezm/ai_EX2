@@ -15368,24 +15368,33 @@ class GringottsController:
         self.turn_count = 0
 
         # Initialize beliefs with uppercase symbols
+        # (None = unknown, True = definitely yes, False = definitely no)
         self.Trap_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
         self.Dragon_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
         self.Vault_beliefs = [[None for _ in range(self.cols)] for _ in range(self.rows)]
 
-        # Mark starting cell as definitely not a Trap and not a Dragon
+        # Mark the starting cell as definitely not a Trap and not a Dragon (Harry is there).
+        # We do that because we know for sure we didn't start on a trap or a dragon.
         r0, c0 = harry_loc
         self.Trap_beliefs[r0][c0] = False
         self.Dragon_beliefs[r0][c0] = False
-
+        print("before:")
+        print(self.Trap_beliefs)
+        print(self.Dragon_beliefs)
+        print(self.Vault_beliefs)
         # Keep track of vaults already "collected" but discovered to be wrong
         self.collected_wrong_vaults = set()
 
-        # Store constraints
+        # Store constraints from observations.
+        # We will store constraints of the form ("SULFUR+", cell) or ("SULFUR0", cell)
         self.obs_constraints = []
 
         # Incorporate any initial observations
         self.update_with_observations(initial_observations)
-
+        print("after:")
+        print(self.Trap_beliefs)
+        print(self.Dragon_beliefs)
+        print(self.Vault_beliefs)
         # Queue of planned actions
         self.current_plan = deque()
 
@@ -15399,7 +15408,7 @@ class GringottsController:
         """
         self.turn_count += 1
 
-        # 1) Update knowledge base with new constraints
+        # 1) Update knowledge base with new constraints (observations from current location).
         self.update_with_observations(observations)
 
         # 2) Solve the knowledge base for the most up-to-date assignment
@@ -15417,15 +15426,15 @@ class GringottsController:
                 if self.Vault_beliefs[r][c] is True:
                     definite_vaults.append((r, c))
 
-        # 4) If we are on a Vault, try to collect it
+        # 4) If we are on a Vault, try to collect it (assuming not yet collected from it)
         if (self.harry_loc in definite_vaults) and (self.harry_loc not in self.collected_wrong_vaults):
             action = ("collect",)
             print(f"Turn {self.turn_count}: Action selected: {action}")
             return action
 
-        # 5) If any definite Vault exists and we are not on it, re-plan path to it
+        # 5) If any definite Vault exists (and we are not on it), re-plan path to it
         if definite_vaults:
-            # For simplicity, choose the first definite Vault found
+            # For simplicity, choose the first definite Vault
             target_vault = definite_vaults[0]
 
             # Plan a path to the target Vault
@@ -15452,46 +15461,43 @@ class GringottsController:
         if self.current_plan:
             action = self.current_plan.popleft()
             print(f"Turn {self.turn_count}: Action selected: {action}")
-            # Update Harry's location if the action is a move
             if action[0] == "move":
                 self.harry_loc = action[1]
                 self.visited.add(action[1])  # Mark the new cell as visited
             return action
 
-        # 8) Plan a path to a goal (Vault or safe cell)
+        # 8) Otherwise, plan a path to a "goal" (Vault or a safe unknown cell)
         path = self.plan_path_to_goal()
         if not path:
-            # If no path found, perform a "wait" as a fallback
+            # If no path found, fallback on "wait"
             action = ("wait",)
             print(f"Turn {self.turn_count}: Action selected: {action}")
             return action
 
-        # Check if the path leads to the current location (implies we are on a goal)
+        # If the path leads to current location, see if we can collect
         if path[-1] == self.harry_loc:
-            # We are already at the goal, perform "collect" if possible
+            # Possibly we are on a goal
+            (r, c) = self.harry_loc
             if self.Vault_beliefs[r][c] is True:
                 action = ("collect",)
                 print(f"Turn {self.turn_count}: Action selected: {action}")
                 return action
 
-        # Convert the path to a series of "move" actions
+        # Convert the BFS path into "move" actions
         moves = []
         current = self.harry_loc
         for step in path:
             if step != current:
                 moves.append(("move", step))
-                # Simulate Harry's movement in planning to prevent redundant moves
                 current = step
         self.current_plan = deque(moves)
 
-        # Return the next action from the plan
         if self.current_plan:
             action = self.current_plan.popleft()
             print(f"Turn {self.turn_count}: Action selected: {action}")
-            # Update Harry's location if the action is a move
             if action[0] == "move":
                 self.harry_loc = action[1]
-                self.visited.add(action[1])  # Mark the new cell as visited
+                self.visited.add(action[1])
             return action
         else:
             action = ("wait",)
@@ -15504,15 +15510,17 @@ class GringottsController:
 
     def update_with_observations(self, obs_list):
         """
-        Update beliefs based on observations using uppercase symbols.
+        Update beliefs based on observations. We do NOT forcibly mark unknown cells as False
+        (except if specifically observed). We store constraints about sulfur or direct sightings.
         """
-        # Mark Vault/Dragon if observed
+        # Check if we have a "sulfur" observation in the new obs_list
         sulfur_detected = False
+
         for obs in obs_list:
             if obs[0] == "vault":
                 (vr, vc) = obs[1]
-                self.Vault_beliefs[vr][vc] = True
-                self.Dragon_beliefs[vr][vc] = False
+                self.Vault_beliefs[vr][vc] = True   # Observed a vault at (vr,vc)
+                self.Dragon_beliefs[vr][vc] = False # Can't be dragon if it's a vault
             elif obs[0] == "dragon":
                 (dr, dc) = obs[1]
                 self.Dragon_beliefs[dr][dc] = True
@@ -15520,20 +15528,21 @@ class GringottsController:
             elif obs[0] == "sulfur":
                 sulfur_detected = True
             elif obs[0] == "trap":
+                # We have a direct observation that (tr,tc) is a trap
                 (tr, tc) = obs[1]
                 self.Trap_beliefs[tr][tc] = True
 
-        # Update sulfur constraints
+        # Now handle the sulfur / no-sulfur constraints for THIS cell:
+        # We do not forcibly set neighbors to "False" for traps. Instead, we store a constraint:
         self.remove_old_sulfur_constraint_for_cell(self.harry_loc)
+
         if sulfur_detected:
-            # sum of Trap among neighbors >= 1
             self.obs_constraints.append(("SULFUR+", self.harry_loc))
         else:
-            # sum of Trap among neighbors == 0
             self.obs_constraints.append(("SULFUR0", self.harry_loc))
 
     def remove_old_sulfur_constraint_for_cell(self, cell):
-        """Keep only the most recent sulfur constraint for a cell."""
+        """Keep only the most recent sulfur constraint for that cell in obs_constraints."""
         newlist = []
         for c in self.obs_constraints:
             ctype, ccell = c
@@ -15547,20 +15556,18 @@ class GringottsController:
 
     def run_inference(self):
         """
-        Perform backtracking to infer definite truths about the grid.
+        Perform backtracking to infer definite truths about the grid,
+        consistent with constraints. We'll keep the 'max_solutions' approach as is.
         """
-        # 1) Gather all cells that remain None for Trap or Dragon or Vault
+        # 1) Gather all cells that remain None for Trap, Dragon, or Vault
         partial_solution = self._snapshot_current_beliefs()
         cells_to_assign = []
         for r in range(self.rows):
             for c in range(self.cols):
-                # Trap
                 if self.Trap_beliefs[r][c] is None:
                     cells_to_assign.append(("Trap", r, c))
-                # Dragon
                 if self.Dragon_beliefs[r][c] is None:
                     cells_to_assign.append(("Dragon", r, c))
-                # Vault
                 if self.Vault_beliefs[r][c] is None:
                     cells_to_assign.append(("Vault", r, c))
 
@@ -15569,10 +15576,10 @@ class GringottsController:
         self.dpll_backtrack(partial_solution, cells_to_assign, 0, solutions, max_solutions)
 
         if not solutions:
-            # Contradictory observations
+            # Contradictory observations or constraints => no solution
             return
 
-        # Compute "forced" booleans = same value in all solutions
+        # Merged approach to find "forced" booleans
         merged = {}
         for var in solutions[0]:
             merged[var] = solutions[0][var]
@@ -15581,12 +15588,11 @@ class GringottsController:
                 if merged[var] != sol[var]:
                     merged[var] = "UNSURE"
 
-        # Store the definite beliefs
+        # Store definite beliefs
         for (kind, r, c), val in merged.items():
             if val == "UNSURE":
-                pass  # remain None
+                pass  # remain None in the beliefs
             else:
-                # True or False
                 if kind == "Trap":
                     self.Trap_beliefs[r][c] = val
                 elif kind == "Dragon":
@@ -15596,46 +15602,50 @@ class GringottsController:
 
     def dpll_backtrack(self, partial_sol, vars_list, index, solutions, max_solutions):
         """
-        Depth-first backtracking search to find all consistent assignments.
-        Stops after finding max_solutions.
+        Depth-first backtracking search to find consistent assignments.
         """
         if len(solutions) >= max_solutions:
-            return  # Reached maximum number of solutions
+            return
 
         if index >= len(vars_list):
             # All variables assigned
+            # Check final constraints
             solutions.append(dict(partial_sol))
             return
 
         varinfo = vars_list[index]
-        # varinfo = ("Trap"/"Dragon"/"Vault", r, c)
-        # If partial_sol already has a value, skip
         if partial_sol[varinfo] is not None:
+            # It's already assigned, just check consistency and move on
             if self.check_constraints(partial_sol):
                 self.dpll_backtrack(partial_sol, vars_list, index + 1, solutions, max_solutions)
             return
         else:
+            # Try False or True
             for attempt in [False, True]:
                 partial_sol[varinfo] = attempt
                 if self.check_constraints(partial_sol):
                     self.dpll_backtrack(partial_sol, vars_list, index + 1, solutions, max_solutions)
                 if len(solutions) >= max_solutions:
-                    return  # Early exit if limit reached
-            partial_sol[varinfo] = None  # Reset
+                    return
+            partial_sol[varinfo] = None
 
     def check_constraints(self, partial_sol):
-        """Check if the current partial assignment satisfies all constraints."""
+        """
+        Check if partial_sol satisfies all constraints so far:
+          1) Not both Dragon & Vault in the same cell
+          2) SULFUR constraints for neighbors
+          3) "Exactly one vault" constraint
+        """
         # 1) Not both Dragon & Vault in the same cell
         for r in range(self.rows):
             for c in range(self.cols):
                 dval = partial_sol.get(("Dragon", r, c), None)
                 vval = partial_sol.get(("Vault", r, c), None)
                 if dval is True and vval is True:
-                    return False  # Conflict
+                    return False
 
         # 2) SULFUR constraints
-        for (ctype, cell) in self.obs_constraints:
-            (rr, cc) = cell
+        for (ctype, (rr, cc)) in self.obs_constraints:
             neighbors = self.get_4_neighbors(rr, cc)
             trap_sum = 0
             unknown_count = 0
@@ -15647,37 +15657,34 @@ class GringottsController:
                     unknown_count += 1
 
             if ctype == "SULFUR+":
-                # At least one Trap
+                # => at least one trap among neighbors
+                # If we have trap_sum=0 and unknown_count=0 => violation
                 if trap_sum == 0 and unknown_count == 0:
                     return False
             elif ctype == "SULFUR0":
-                # No Traps
+                # => no traps among neighbors
+                # If trap_sum>0 => violation
                 if trap_sum > 0:
                     return False
 
-        # 3) Exactly one Vault exists
+        # 3) Exactly one Vault in the entire grid
         vault_count = 0
+        unknown_vaults = 0
         for r in range(self.rows):
             for c in range(self.cols):
                 vval = partial_sol.get(("Vault", r, c), None)
                 if vval is True:
                     vault_count += 1
                 elif vval is None:
-                    pass  # Potential Vault
+                    unknown_vaults += 1
 
+        # If we already have 2 or more vaults => violation
         if vault_count > 1:
-            return False  # More than one Vault is invalid
+            return False
 
-        # Additionally, if all cells are assigned and no Vault is present, invalidate
-        if vault_count == 0:
-            all_assigned = True
-            for r in range(self.rows):
-                for c in range(self.cols):
-                    if self.Vault_beliefs[r][c] is None:
-                        all_assigned = False
-                        break
-            if all_assigned:
-                return False  # At least one Vault must exist
+        # Additionally, if all are assigned but we have 0 => also violation
+        if unknown_vaults == 0 and vault_count == 0:
+            return False
 
         return True
 
@@ -15688,9 +15695,9 @@ class GringottsController:
         d = {}
         for r in range(self.rows):
             for c in range(self.cols):
-                d[("Trap", r, c)] = self.Trap_beliefs[r][c]
+                d[("Trap", r, c)]   = self.Trap_beliefs[r][c]
                 d[("Dragon", r, c)] = self.Dragon_beliefs[r][c]
-                d[("Vault", r, c)] = self.Vault_beliefs[r][c]
+                d[("Vault", r, c)]  = self.Vault_beliefs[r][c]
         return d
 
     # -------------------------------------------------------------------------
@@ -15698,7 +15705,7 @@ class GringottsController:
     # -------------------------------------------------------------------------
 
     def find_adjacent_definite_trap(self):
-        """Return the location of an adjacent Trap if known."""
+        """Return the location of an adjacent Trap if known = True."""
         (r, c) = self.harry_loc
         for (nr, nc) in self.get_4_neighbors(r, c):
             tval = self.Trap_beliefs[nr][nc]
@@ -15708,9 +15715,10 @@ class GringottsController:
 
     def calculate_vault_probabilities(self):
         """
-        Calculate the probability of each cell containing a vault.
+        Calculate a simplistic probability for each cell containing a vault,
+        based on 'unknown' + slight boost for unvisited.
         """
-        probabilities = [[0.1 for _ in range(self.cols)] for _ in range(self.rows)]  # Default probability for unknown cells
+        probabilities = [[0.1 for _ in range(self.cols)] for _ in range(self.rows)]
 
         for r in range(self.rows):
             for c in range(self.cols):
@@ -15719,62 +15727,61 @@ class GringottsController:
                 elif self.Vault_beliefs[r][c] is False:
                     probabilities[r][c] = 0.0
                 else:
-                    # Adjust probability based on whether the cell has been visited
-                    if (r, c) not in self.visited:
-                        probabilities[r][c] += 0.1  # Slightly higher probability for unvisited cells
-                    # You can further adjust this based on other factors if desired
-
+                    # Slightly bump if unvisited
+                    if (r,c) not in self.visited:
+                        probabilities[r][c] += 0.1
         return probabilities
 
     def plan_path_to_goal(self):
         """
-        Plan a path to a Vault or a safe cell based on vault probabilities and visited cells.
+        Plan a path to a Vault or a safe cell, using BFS and the
+        'probabilities' approach you had.
         """
-        # 1. Calculate vault probabilities
         vault_probs = self.calculate_vault_probabilities()
 
-        # 2. Identify candidate goals with their probabilities
+        # Collect candidate goals
         goals = []
+        # First, the definitely-True vaults
         for r in range(self.rows):
             for c in range(self.cols):
                 if self.Vault_beliefs[r][c] is True:
                     if (r, c) not in self.collected_wrong_vaults:
-                        goals.append(((r, c), 1.0))  # Definite vaults have probability 1
-                elif self.Vault_beliefs[r][c] is None:
-                    # Prefer unvisited cells by slightly increasing their probability
-                    prob = vault_probs[r][c]
-                    if (r, c) not in self.visited:
-                        prob += 0.1  # Boost probability for unvisited cells
-                    goals.append(((r, c), prob))  # Unknown cells have low probability
+                        goals.append(((r, c), 1.0))
 
-        # 3. Sort goals by probability in descending order
-        goals.sort(key=lambda x: x[1], reverse=True)
-
-        # 4. If no Vaults known, explore safe cells with higher probability
+        # If none known, consider unknown
         if not goals:
             for r in range(self.rows):
                 for c in range(self.cols):
-                    if self.Trap_beliefs[r][c] is False and self.Dragon_beliefs[r][c] is False:
-                        # Prefer unvisited cells by assigning higher probabilities
-                        if (r, c) not in self.visited:
-                            prob = 0.2  # Higher probability for unvisited safe cells
-                        else:
-                            prob = 0.1  # Lower probability for visited safe cells
+                    if self.Vault_beliefs[r][c] is None:
+                        # Probability from vault_probs
+                        prob = vault_probs[r][c]
                         goals.append(((r, c), prob))
 
-        # 5. If still no goals, return None
+        # If still none, consider safe cells
+        if not goals:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    # A cell we believe is not trap or dragon:
+                    if self.Trap_beliefs[r][c] is False and self.Dragon_beliefs[r][c] is False:
+                        # If unvisited => bigger prob
+                        if (r, c) not in self.visited:
+                            prob = 0.2
+                        else:
+                            prob = 0.1
+                        goals.append(((r, c), prob))
+
         if not goals:
             return None
 
-        # 6. Select the goal with the highest probability
-        best_goal, best_prob = goals[0]
+        # Sort by probability
+        goals.sort(key=lambda x: x[1], reverse=True)
 
-        # 7. Plan a path to the best goal using BFS
+        best_goal, best_prob = goals[0]
         return self.bfs_path(self.harry_loc, best_goal)
 
     def bfs_path(self, start, goal):
         """
-        Perform BFS to find a path from start to goal, avoiding known Traps and Dragons.
+        BFS path avoiding known traps/dragons.
         """
         if start == goal:
             return [start]
@@ -15788,7 +15795,7 @@ class GringottsController:
             (cur, path) = queue.popleft()
             for nbd in self.get_4_neighbors(cur[0], cur[1]):
                 nr, nc = nbd
-                # Skip if Trap or Dragon is definitely present
+                # Skip if definitely a trap or definitely a dragon
                 if self.Trap_beliefs[nr][nc] is True:
                     continue
                 if self.Dragon_beliefs[nr][nc] is True:
@@ -15803,19 +15810,20 @@ class GringottsController:
 
     def get_4_neighbors(self, r, c):
         """Return up/down/left/right neighbors within grid boundaries."""
-        result = []
+        results = []
         if r > 0:
-            result.append((r - 1, c))
+            results.append((r - 1, c))
         if r < self.rows - 1:
-            result.append((r + 1, c))
+            results.append((r + 1, c))
         if c > 0:
-            result.append((r, c - 1))
+            results.append((r, c - 1))
         if c < self.cols - 1:
-            result.append((r, c + 1))
-        return result
+            results.append((r, c + 1))
+        return results
 
     def __repr__(self):
-        return "<GringottsController using enhanced heuristics for inference and action selection>"
+        return "<GringottsController with improved observation modeling>"
+
 
 ###***######***######***######***###
 
@@ -15843,3 +15851,11 @@ Instead of re-evaluating all constraints from scratch after each observation, up
 Incorporate heuristic-based variable ordering in your DPLL implementation to prioritize assignments that are more likely to lead to a solution, thereby reducing the search space and speeding up inference.
 7. Continuous Learning and Adaptation
 Implement mechanisms for the controller to learn from past actions and observations, refining its strategies over time. This adaptive approach can lead to more intelligent navigation and decision-making.
+
+
+What I need from you now:
+2. You should be using functions given in the utils.py file! There should be enough functions to utilize and implement all the ideas needed to solve the exercise.
+3. According to lecture, the exercise code should be based on knowledge base integration! to Utilize a more formal knowledge base to store and query logical relations between cells, enhancing inference capabilities beyond the belief matrices.
+This is important, from the lecture which was mentioned in my message, the inferences should be from the current knowledge base, consider the constraints, and also enlarge the knowledge base progressively based on the observations over time!
+Leveraging the PropKB or PropDefiniteKB from utils.py can significantly enhance your controller's inference capabilities. By representing observations and constraints formally within a KB, you can utilize established logical inference mechanisms to deduce the state of the environment more efficiently.
+I need the complete code implementation.
