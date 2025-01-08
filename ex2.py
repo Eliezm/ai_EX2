@@ -8,7 +8,7 @@ from utils import Expr, Symbol, expr, PropKB, pl_resolution, first  # Import nec
 
 def cell_symbol(kind, r, c):
     """
-    Return a propositional symbol for e.g. 'Trap_2_3' or 'Vault_1_2'.
+    Return a propositional symbol for e.g. 'Trap_0_1' or 'Vault_1_1'.
     `kind` is a string: "Trap", "Vault", or "Dragon".
     """
     return Symbol(f"{kind}_{r}_{c}")
@@ -19,7 +19,7 @@ class GringottsController:
         Controller initialization using a Knowledge Base (KB) for logical inference.
         """
         self.rows, self.cols = map_shape
-        self.harry_loc = harry_loc
+        self.harry_loc = harry_loc  # (row, col) with 0-based indexing
         self.turn_count = 0
 
         # Initialize the Knowledge Base
@@ -29,10 +29,10 @@ class GringottsController:
         self.define_symbols()
         self.add_knowledge_constraints()
 
-        # Initialize belief matrices (for debugging and action selection)
-        self.Trap_beliefs = [[None for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
-        self.Dragon_beliefs = [[None for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
-        self.Vault_beliefs = [[None for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
+        # Initialize belief dictionaries
+        self.Trap_beliefs = {}    # {(r, c): True/False/None}
+        self.Dragon_beliefs = {}
+        self.Vault_beliefs = {}
 
         # Keep track of vaults already "collected" but discovered to be wrong
         self.collected_wrong_vaults = set()
@@ -49,31 +49,34 @@ class GringottsController:
         r0, c0 = harry_loc
         self.kb.tell(~cell_symbol("Trap", r0, c0))
         self.kb.tell(~cell_symbol("Dragon", r0, c0))
-        self.Trap_beliefs[r0][c0] = False
-        self.Dragon_beliefs[r0][c0] = False
+        self.Trap_beliefs[(r0, c0)] = False
+        self.Dragon_beliefs[(r0, c0)] = False
 
         print("before:")
-        print(self.Trap_beliefs)
-        print(self.Dragon_beliefs)
-        print(self.Vault_beliefs)
+        print("Trap Beliefs:", self.Trap_beliefs)
+        print("Dragon Beliefs:", self.Dragon_beliefs)
+        print("Vault Beliefs:", self.Vault_beliefs)
 
         # Incorporate any initial observations
         self.update_with_observations(initial_observations)
 
         print("after:")
-        print(self.Trap_beliefs)
-        print(self.Dragon_beliefs)
-        print(self.Vault_beliefs)
+        print("Trap Beliefs:", self.Trap_beliefs)
+        print("Dragon Beliefs:", self.Dragon_beliefs)
+        print("Vault Beliefs:", self.Vault_beliefs)
 
         # Queue of planned actions
         self.current_plan = deque()
+
+        # Initialize inference cache
+        self.inference_cache = {}  # {(r, c, kind): True/False}
 
     def define_symbols(self):
         """
         Define all propositional symbols for Traps, Dragons, and Vaults in the grid.
         """
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
+        for r in range(self.rows):
+            for c in range(self.cols):
                 # Symbols are created on-the-fly using cell_symbol
                 pass  # No need to predefine symbols
 
@@ -85,29 +88,31 @@ class GringottsController:
         """
         # 1. Exclusivity: A cell cannot have both a Vault and a Dragon
         exclusivity_clauses = []
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
+        for r in range(self.rows):
+            for c in range(self.cols):
                 v = cell_symbol("Vault", r, c)
                 d = cell_symbol("Dragon", r, c)
                 # Not both Vault and Dragon
                 exclusivity_clauses.append(~v | ~d)
         # Batch tell exclusivity constraints
-        self.kb.tell(expr(" & ".join(str(c) for c in exclusivity_clauses)))
+        if exclusivity_clauses:
+            self.kb.tell(expr(" & ".join(str(c) for c in exclusivity_clauses)))
 
-        # # 2. Exactly one Vault: At least one Vault and at most one Vault
-        # all_vaults = [cell_symbol("Vault", r, c) for r in range(1, self.rows + 1) for c in range(1, self.cols + 1)]
-        # if all_vaults:
-        #     # At least one Vault
-        #     at_least_one_vault = expr(" | ".join(str(v) for v in all_vaults))
-        #     self.kb.tell(at_least_one_vault)
-        #
-        #     # At most one Vault
-        #     at_most_one_vault_clauses = []
-        #     for i in range(len(all_vaults)):
-        #         for j in range(i + 1, len(all_vaults)):
-        #             at_most_one_vault_clauses.append(~all_vaults[i] | ~all_vaults[j])
-        #     # Batch tell at-most-one Vault constraints
-        #     self.kb.tell(expr(" & ".join(str(c) for c in at_most_one_vault_clauses)))
+        # 2. Exactly one Vault: At least one Vault and at most one Vault
+        all_vaults = [cell_symbol("Vault", r, c) for r in range(self.rows) for c in range(self.cols)]
+        if all_vaults:
+            # At least one Vault
+            at_least_one_vault = expr(" | ".join(str(v) for v in all_vaults))
+            self.kb.tell(at_least_one_vault)
+
+            # At most one Vault
+            at_most_one_vault_clauses = []
+            for i in range(len(all_vaults)):
+                for j in range(i + 1, len(all_vaults)):
+                    at_most_one_vault_clauses.append(~all_vaults[i] | ~all_vaults[j])
+            # Batch tell at-most-one Vault constraints
+            if at_most_one_vault_clauses:
+                self.kb.tell(expr(" & ".join(str(c) for c in at_most_one_vault_clauses)))
 
     def update_with_observations(self, obs_list):
         """
@@ -121,28 +126,40 @@ class GringottsController:
                 (vr, vc) = obs[1]
                 v_sym = cell_symbol("Vault", vr, vc)
                 d_sym = cell_symbol("Dragon", vr, vc)
-                self.kb.tell(v_sym)
-                self.kb.tell(~d_sym)
-                self.Vault_beliefs[vr][vc] = True
-                self.Dragon_beliefs[vr][vc] = False
-                self.visited.add((vr, vc))
+                if self.Vault_beliefs.get((vr, vc), None) != True:
+                    self.kb.tell(v_sym)
+                    self.kb.tell(~d_sym)
+                    self.Vault_beliefs[(vr, vc)] = True
+                    self.Dragon_beliefs[(vr, vc)] = False
+                    self.visited.add((vr, vc))
+
+                    # Forward Checking: Remove this cell from other Vault possibilities
+                    all_vaults = [cell_symbol("Vault", r, c) for r in range(self.rows) for c in range(self.cols)]
+                    for v in all_vaults:
+                        if v != v_sym:
+                            self.kb.tell(~v)
             elif obs[0] == "dragon":
                 (dr, dc) = obs[1]
                 d_sym = cell_symbol("Dragon", dr, dc)
                 v_sym = cell_symbol("Vault", dr, dc)
-                self.kb.tell(d_sym)
-                self.kb.tell(~v_sym)
-                self.Dragon_beliefs[dr][dc] = True
-                self.Vault_beliefs[dr][dc] = False
-                self.visited.add((dr, dc))
+                if self.Dragon_beliefs.get((dr, dc), None) != True:
+                    self.kb.tell(d_sym)
+                    self.kb.tell(~v_sym)
+                    self.Dragon_beliefs[(dr, dc)] = True
+                    self.Vault_beliefs[(dr, dc)] = False
+                    self.visited.add((dr, dc))
+
+                    # Forward Checking: Remove this cell from Vault possibilities
+                    self.kb.tell(~v_sym)
             elif obs[0] == "sulfur":
                 sulfur_detected = True
             elif obs[0] == "trap":
                 (tr, tc) = obs[1]
                 t_sym = cell_symbol("Trap", tr, tc)
-                self.kb.tell(t_sym)
-                self.Trap_beliefs[tr][tc] = True
-                self.visited.add((tr, tc))
+                if self.Trap_beliefs.get((tr, tc), None) != True:
+                    self.kb.tell(t_sym)
+                    self.Trap_beliefs[(tr, tc)] = True
+                    self.visited.add((tr, tc))
 
         # Handle sulfur constraints for the current cell
         r, c = self.harry_loc
@@ -173,33 +190,76 @@ class GringottsController:
 
     def run_inference(self):
         """
-        Perform inference using the KB to update belief matrices.
+        Perform inference using the KB to update belief dictionaries.
         """
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
+        for r in range(self.rows):
+            for c in range(self.cols):
+                cell = (r, c)
                 # Infer Vaults
-                if self.Vault_beliefs[r][c] is None:
+                if cell not in self.Vault_beliefs:
                     v_sym = cell_symbol("Vault", r, c)
-                    if pl_resolution(self.kb, v_sym):
-                        self.Vault_beliefs[r][c] = True
-                    elif pl_resolution(self.kb, ~v_sym):
-                        self.Vault_beliefs[r][c] = False
+                    cache_key = (r, c, "Vault")
+                    if cache_key in self.inference_cache:
+                        inference_result = self.inference_cache[cache_key]
+                    else:
+                        inference_result = pl_resolution(self.kb, v_sym)
+                        self.inference_cache[cache_key] = inference_result
+                    if inference_result:
+                        self.Vault_beliefs[cell] = True
+                        continue  # No need to check False if True
+
+                    cache_key_neg = (r, c, "Vault_neg")
+                    if cache_key_neg in self.inference_cache:
+                        inference_result_neg = self.inference_cache[cache_key_neg]
+                    else:
+                        inference_result_neg = pl_resolution(self.kb, ~v_sym)
+                        self.inference_cache[cache_key_neg] = inference_result_neg
+                    if inference_result_neg:
+                        self.Vault_beliefs[cell] = False
 
                 # Infer Dragons
-                if self.Dragon_beliefs[r][c] is None:
+                if cell not in self.Dragon_beliefs:
                     d_sym = cell_symbol("Dragon", r, c)
-                    if pl_resolution(self.kb, d_sym):
-                        self.Dragon_beliefs[r][c] = True
-                    elif pl_resolution(self.kb, ~d_sym):
-                        self.Dragon_beliefs[r][c] = False
+                    cache_key = (r, c, "Dragon")
+                    if cache_key in self.inference_cache:
+                        inference_result = self.inference_cache[cache_key]
+                    else:
+                        inference_result = pl_resolution(self.kb, d_sym)
+                        self.inference_cache[cache_key] = inference_result
+                    if inference_result:
+                        self.Dragon_beliefs[cell] = True
+                        continue
+
+                    cache_key_neg = (r, c, "Dragon_neg")
+                    if cache_key_neg in self.inference_cache:
+                        inference_result_neg = self.inference_cache[cache_key_neg]
+                    else:
+                        inference_result_neg = pl_resolution(self.kb, ~d_sym)
+                        self.inference_cache[cache_key_neg] = inference_result_neg
+                    if inference_result_neg:
+                        self.Dragon_beliefs[cell] = False
 
                 # Infer Traps
-                if self.Trap_beliefs[r][c] is None:
+                if cell not in self.Trap_beliefs:
                     t_sym = cell_symbol("Trap", r, c)
-                    if pl_resolution(self.kb, t_sym):
-                        self.Trap_beliefs[r][c] = True
-                    elif pl_resolution(self.kb, ~t_sym):
-                        self.Trap_beliefs[r][c] = False
+                    cache_key = (r, c, "Trap")
+                    if cache_key in self.inference_cache:
+                        inference_result = self.inference_cache[cache_key]
+                    else:
+                        inference_result = pl_resolution(self.kb, t_sym)
+                        self.inference_cache[cache_key] = inference_result
+                    if inference_result:
+                        self.Trap_beliefs[cell] = True
+                        continue
+
+                    cache_key_neg = (r, c, "Trap_neg")
+                    if cache_key_neg in self.inference_cache:
+                        inference_result_neg = self.inference_cache[cache_key_neg]
+                    else:
+                        inference_result_neg = pl_resolution(self.kb, ~t_sym)
+                        self.inference_cache[cache_key_neg] = inference_result_neg
+                    if inference_result_neg:
+                        self.Trap_beliefs[cell] = False
 
     def get_next_action(self, observations):
         """
@@ -210,25 +270,37 @@ class GringottsController:
         # 1. Update KB with new observations
         self.update_with_observations(observations)
 
-        # 2. Run inference to update belief matrices
+        # 2. Run inference to update belief dictionaries
         self.run_inference()
 
         # Debug: Print current beliefs
         print(f"Turn {self.turn_count}: Current Vault Beliefs:")
-        for row in self.Vault_beliefs[1:]:
-            print(row[1:])
+        for r in range(self.rows):
+            row_beliefs = []
+            for c in range(self.cols):
+                belief = self.Vault_beliefs.get((r, c), None)
+                row_beliefs.append(belief)
+            print(row_beliefs)
         print(f"Turn {self.turn_count}: Current Trap Beliefs:")
-        for row in self.Trap_beliefs[1:]:
-            print(row[1:])
+        for r in range(self.rows):
+            row_beliefs = []
+            for c in range(self.cols):
+                belief = self.Trap_beliefs.get((r, c), None)
+                row_beliefs.append(belief)
+            print(row_beliefs)
         print(f"Turn {self.turn_count}: Current Dragon Beliefs:")
-        for row in self.Dragon_beliefs[1:]:
-            print(row[1:])
+        for r in range(self.rows):
+            row_beliefs = []
+            for c in range(self.cols):
+                belief = self.Dragon_beliefs.get((r, c), None)
+                row_beliefs.append(belief)
+            print(row_beliefs)
 
         # 3. Identify all definite Vaults
         definite_vaults = []
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
-                if self.Vault_beliefs[r][c] is True:
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True:
                     definite_vaults.append((r, c))
 
         # 4. If we are on a Vault, try to collect it (assuming not yet collected from it)
@@ -282,7 +354,7 @@ class GringottsController:
         if path[-1] == self.harry_loc:
             # Possibly we are on a goal
             (r, c) = self.harry_loc
-            if self.Vault_beliefs[r][c] is True:
+            if self.Vault_beliefs.get((r, c), None) is True:
                 action = ("collect",)
                 print(f"Turn {self.turn_count}: Action selected: {action}")
                 return action
@@ -315,7 +387,7 @@ class GringottsController:
         """Return the location of an adjacent Trap if known = True."""
         (r, c) = self.harry_loc
         for (nr, nc) in self.get_4_neighbors(r, c):
-            if self.Trap_beliefs[nr][nc] is True:
+            if self.Trap_beliefs.get((nr, nc), None) is True:
                 return (nr, nc)
         return None
 
@@ -324,18 +396,19 @@ class GringottsController:
         Calculate a simplistic probability for each cell containing a vault,
         based on 'unknown' + slight boost for unvisited.
         """
-        probabilities = [[0.1 for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
-
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
-                if self.Vault_beliefs[r][c] is True:
-                    probabilities[r][c] = 1.0
-                elif self.Vault_beliefs[r][c] is False:
-                    probabilities[r][c] = 0.0
+        probabilities = {}
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True:
+                    probabilities[(r, c)] = 1.0
+                elif self.Vault_beliefs.get((r, c), None) is False:
+                    probabilities[(r, c)] = 0.0
                 else:
                     # Slightly bump if unvisited
                     if (r, c) not in self.visited:
-                        probabilities[r][c] += 0.1
+                        probabilities[(r, c)] = 0.2  # Increased probability
+                    else:
+                        probabilities[(r, c)] = 0.1  # Base probability
         return probabilities
 
     def plan_path_to_goal(self):
@@ -348,27 +421,27 @@ class GringottsController:
         # Collect candidate goals
         goals = []
         # First, the definitely-True vaults
-        for r in range(1, self.rows + 1):
-            for c in range(1, self.cols + 1):
-                if self.Vault_beliefs[r][c] is True:
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True:
                     if (r, c) not in self.collected_wrong_vaults:
                         goals.append(((r, c), 1.0))
 
         # If none known, consider unknown
         if not goals:
-            for r in range(1, self.rows + 1):
-                for c in range(1, self.cols + 1):
-                    if self.Vault_beliefs[r][c] is None:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Vault_beliefs.get((r, c), None) is None:
                         # Probability from vault_probs
-                        prob = vault_probs[r][c]
+                        prob = vault_probs.get((r, c), 0.1)
                         goals.append(((r, c), prob))
 
         # If still none, consider safe cells
         if not goals:
-            for r in range(1, self.rows + 1):
-                for c in range(1, self.cols + 1):
+            for r in range(self.rows):
+                for c in range(self.cols):
                     # A cell we believe is not trap or dragon:
-                    if self.Trap_beliefs[r][c] is False and self.Dragon_beliefs[r][c] is False:
+                    if self.Trap_beliefs.get((r, c), False) is False and self.Dragon_beliefs.get((r, c), False) is False:
                         # If unvisited => bigger prob
                         if (r, c) not in self.visited:
                             prob = 0.2
@@ -379,7 +452,7 @@ class GringottsController:
         if not goals:
             return None
 
-        # Sort by probability
+        # Sort by probability in descending order
         goals.sort(key=lambda x: x[1], reverse=True)
 
         best_goal, best_prob = goals[0]
@@ -401,9 +474,9 @@ class GringottsController:
             for nbd in self.get_4_neighbors(current[0], current[1]):
                 nr, nc = nbd
                 # Skip if definitely a trap or definitely a dragon
-                if self.Trap_beliefs[nr][nc] is True:
+                if self.Trap_beliefs.get((nr, nc), None) is True:
                     continue
-                if self.Dragon_beliefs[nr][nc] is True:
+                if self.Dragon_beliefs.get((nr, nc), None) is True:
                     continue
                 if nbd not in visited:
                     visited.add(nbd)
@@ -416,13 +489,13 @@ class GringottsController:
     def get_4_neighbors(self, r, c):
         """Return up/down/left/right neighbors within grid boundaries."""
         results = []
-        if r > 1:
+        if r > 0:
             results.append((r - 1, c))
-        if r < self.rows:
+        if r < self.rows - 1:
             results.append((r + 1, c))
-        if c > 1:
+        if c > 0:
             results.append((r, c - 1))
-        if c < self.cols:
+        if c < self.cols - 1:
             results.append((r, c + 1))
         return results
 
@@ -432,5 +505,3 @@ class GringottsController:
 
     def __repr__(self):
         return "<GringottsController with KB-based inference using PropKB>"
-
-# Rest of your code remains unchanged, including WumpusKB, PropDefiniteKB, and other utility functions.
