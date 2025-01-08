@@ -15,21 +15,21 @@ CODES_NEW = {'passage': 0, 'dragon': 1, 'vault': 2, 'trap': 3, 'hollow_vault': 4
              'hollow_trap_vault': 7}
 
 easy_inputs = [
-    {
-        'Harry_start': (1, 1),
-        'full_map': [
-            [0, 0],
-            [0, 4]
-        ]
-    }
     # {
-    #     'Harry_start': (1, 0),
+    #     'Harry_start': (0, 0),
     #     'full_map': [
-    #         [0, 0, 0],
-    #         [0, 1, 0],
-    #         [0, 4, 0]
+    #         [0, 1],
+    #         [0, 4]
     #     ]
     # }
+    {
+        'Harry_start': (0, 0),
+        'full_map': [
+            [0, 0, 0],
+            [0, 1, 0],
+            [0, 4, 0]
+        ]
+    }
     # {
     #     'Harry_start': (0, 0),
     #     'full_map': [
