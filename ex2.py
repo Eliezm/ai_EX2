@@ -1,4 +1,4 @@
-# ex2.py
+# ex2_refactored.py
 
 ids = ['123456789']  # Replace with your ID(s)
 
@@ -36,14 +36,13 @@ class GringottsController:
         self.Dragon_beliefs = {}  # {(r, c): True/False/None}
         self.Vault_beliefs = {}   # {(r, c): True/False/None}
 
-        # Keep track of vaults already "collected" but discovered to be wrong
-        self.collected_wrong_vaults = set()
+        # Keep track of vaults already "collected" so we won't collect them repeatedly
+        self.collected_vaults = set()
 
-        # Store constraints from observations.
-        # Constraints are tuples: ("SULFUR+", cell) or ("SULFUR0", cell)
+        # Store constraints from observations (like "SULFUR+" or "SULFUR0")
         self.obs_constraints = []
 
-        # List of possible trap tiles we need to destroy (replaces deque)
+        # Track possible traps to destroy
         self.possible_traps_to_destroy = []
 
         # Memory of visited cells
@@ -78,13 +77,13 @@ class GringottsController:
         # We keep a queue of planned actions if you want, but not strictly needed
         self.current_plan = deque()
 
+    # -------------------------------------------------------------------------
+    # Knowledge-Base Setup
+    # -------------------------------------------------------------------------
+
     def define_symbols(self):
-        """
-        Define all propositional symbols for Traps, Dragons, and Vaults in the grid.
-        """
-        for r in range(self.rows):
-            for c in range(self.cols):
-                pass  # No need to predefine symbols; cell_symbol covers it
+        # We skip predefining anything; cell_symbol suffices
+        pass
 
     def add_knowledge_constraints(self):
         """
@@ -102,15 +101,17 @@ class GringottsController:
 
                 # 1. Not both Vault and Dragon
                 exclusivity_clauses.append(~v | ~d)
-
-                # 2. Vault and Trap can coexist, so no extra constraint.
-
-                # 3. Dragon => ~Trap, i.e. (~Dragon | ~Trap)
+                # 2. Vault & Trap can coexist => no constraint
+                # 3. Dragon => ~Trap => (~Dragon | ~Trap)
                 exclusivity_clauses.append(~d | ~t)
 
         if exclusivity_clauses:
             clause_str = " & ".join(str(cl) for cl in exclusivity_clauses)
             self.kb.tell(expr(clause_str))
+
+    # -------------------------------------------------------------------------
+    # Observations & Updates
+    # -------------------------------------------------------------------------
 
     def update_with_observations(self, obs_list):
         """
@@ -122,7 +123,8 @@ class GringottsController:
         no_sulfur_detected = False
 
         for obs in obs_list:
-            if obs[0] == "vault":
+            obs_kind = obs[0]
+            if obs_kind == "vault":
                 (vr, vc) = obs[1]
                 v_sym = cell_symbol("Vault", vr, vc)
                 d_sym = cell_symbol("Dragon", vr, vc)
@@ -131,10 +133,9 @@ class GringottsController:
                     self.kb.tell(~d_sym)
                     self.Vault_beliefs[(vr, vc)] = True
                     self.Dragon_beliefs[(vr, vc)] = False
-                    # self.visited.add((vr, vc))
                     print(f" - Vault detected at {(vr, vc)}. Updated beliefs (Vault=True, Dragon=False).")
 
-            elif obs[0] == "dragon":
+            elif obs_kind == "dragon":
                 (dr, dc) = obs[1]
                 d_sym = cell_symbol("Dragon", dr, dc)
                 v_sym = cell_symbol("Vault", dr, dc)
@@ -143,12 +144,12 @@ class GringottsController:
                     self.kb.tell(~v_sym)
                     self.Dragon_beliefs[(dr, dc)] = True
                     self.Vault_beliefs[(dr, dc)] = False
-                    # By default set Trap=False unless "combined tile" is specifically indicated
+                    # By default, set trap false unless we know it's combined
                     self.Trap_beliefs[(dr, dc)] = False
                     self.visited.add((dr, dc))
                     print(f" - Dragon detected at {(dr, dc)}. (Dragon=True, Vault=False, Trap=False)")
 
-            elif obs[0] == "trap":
+            elif obs_kind == "trap":
                 (tr, tc) = obs[1]
                 t_sym = cell_symbol("Trap", tr, tc)
                 if self.Trap_beliefs.get((tr, tc), None) != True:
@@ -157,20 +158,20 @@ class GringottsController:
                     self.visited.add((tr, tc))
                     print(f" - Trap detected at {(tr, tc)}. Trap Beliefs set to True.")
 
-            elif obs[0] == "sulfur":
+            elif obs_kind == "sulfur":
                 sulfur_detected = True
                 print(" - Sulfur detected near Harry's location.")
 
-            elif obs[0] == "no_sulfur":
+            elif obs_kind == "no_sulfur":
                 no_sulfur_detected = True
                 print(" - No sulfur detected near Harry's location.")
 
-        # Now handle sulfur constraints for the current cell
+        # Handle sulfur constraints for current cell
         r, c = self.harry_loc
         neighbors = self.get_4_neighbors(r, c)
         neighbor_traps = [cell_symbol("Trap", nr, nc) for (nr, nc) in neighbors]
 
-        # Remove old sulfur constraint for this cell (only keep most recent)
+        # Remove old sulfur constraint for this cell (keep only newest)
         self.remove_old_sulfur_constraint_for_cell(self.harry_loc)
 
         if sulfur_detected:
@@ -186,18 +187,19 @@ class GringottsController:
                 print(f" - Updating KB with no sulfur constraint: {no_trap_clause}")
             self.obs_constraints.append(("SULFUR0", self.harry_loc))
 
-        print()  # blank line for spacing
+        print()
 
     def remove_old_sulfur_constraint_for_cell(self, cell):
-        """
-        Keep only the most recent sulfur constraint for the given cell in obs_constraints.
-        """
         newlist = [c for c in self.obs_constraints if c[1] != cell]
         self.obs_constraints = newlist
 
+    # -------------------------------------------------------------------------
+    # Inference
+    # -------------------------------------------------------------------------
+
     def run_inference(self, affected_cells=None):
         """
-        Perform inference using the KB to update belief dictionaries.
+        Perform inference using the KB to update beliefs.
         """
         cells_to_infer = affected_cells if affected_cells else [
             (r, c) for r in range(self.rows) for c in range(self.cols)
@@ -206,7 +208,7 @@ class GringottsController:
         for cell in cells_to_infer:
             r, c = cell
 
-            # Infer Vault
+            # Vault
             if cell not in self.Vault_beliefs:
                 v_sym = cell_symbol("Vault", r, c)
                 cache_key = (cell, "Vault")
@@ -216,7 +218,7 @@ class GringottsController:
                     self.Vault_beliefs[cell] = True
                     print(f" - Inference: Vault present at {(r, c)}.")
                     continue
-                # Check if not a vault
+                # Check not vault
                 cache_key_neg = (cell, "Vault_neg")
                 if cache_key_neg not in self.inference_cache:
                     self.inference_cache[cache_key_neg] = pl_resolution(self.kb, ~v_sym)
@@ -224,7 +226,7 @@ class GringottsController:
                     self.Vault_beliefs[cell] = False
                     print(f" - Inference: Vault not present at {(r, c)}.")
 
-            # Infer Dragon
+            # Dragon
             if cell not in self.Dragon_beliefs:
                 d_sym = cell_symbol("Dragon", r, c)
                 cache_key = (cell, "Dragon")
@@ -241,7 +243,7 @@ class GringottsController:
                     self.Dragon_beliefs[cell] = False
                     print(f" - Inference: Dragon not present at {(r, c)}.")
 
-            # Infer Trap
+            # Trap
             if cell not in self.Trap_beliefs:
                 t_sym = cell_symbol("Trap", r, c)
                 cache_key = (cell, "Trap")
@@ -257,6 +259,10 @@ class GringottsController:
                 if self.inference_cache[cache_key_neg]:
                     self.Trap_beliefs[cell] = False
                     print(f" - Inference: Trap not present at {(r, c)}.")
+
+    # -------------------------------------------------------------------------
+    # Decide Next Action
+    # -------------------------------------------------------------------------
 
     def get_next_action(self, observations):
         """
@@ -275,25 +281,24 @@ class GringottsController:
             if obs[0] in ["vault", "dragon", "trap"]:
                 affected_cells.add(obs[1])
 
-        # 3. Run inference on those cells
+        # 3. Run inference
         self.run_inference(affected_cells=affected_cells)
 
-        # 4. **Print debugging info** after we do the inference and updates
+        # 4. Print debugging info
         self.print_debug_info(label="After Observations & Inference")
 
-        # 4.5. If there's sulfur, gather possible unvisited trap cells
+        # 4.5 If sulfur, gather possible unvisited trap cells
         if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
             possible_traps = self.infer_possible_traps()
             if possible_traps:
                 print(f" - The following cells are suspected as traps: {possible_traps}")
             for trap_cell in possible_traps:
-                # only add if not visited & not known False
                 if (trap_cell not in self.visited) and (self.Trap_beliefs.get(trap_cell, None) is not False):
                     if trap_cell not in self.possible_traps_to_destroy:
                         self.possible_traps_to_destroy.append(trap_cell)
                         print("Possible traps list (appended):", self.possible_traps_to_destroy)
 
-        # 5. If there are any possible traps to destroy, do so one-by-one
+        # 5. If there's a trap to destroy in the queue, do that first
         if self.possible_traps_to_destroy:
             trap_to_destroy = self.possible_traps_to_destroy[0]
             self.possible_traps_to_destroy = self.possible_traps_to_destroy[1:]
@@ -305,32 +310,28 @@ class GringottsController:
             self.Trap_beliefs[trap_to_destroy] = False
 
             self.print_debug_info(label="After Destroying a Trap")
-
             print("=============================\n")
             return action
 
-        # 6. Check if current location is a Vault
+        # 6. If we are currently on a Vault, collect it only if not collected yet
         if self.Vault_beliefs.get(self.harry_loc, None) is True:
-            if self.Trap_beliefs.get(self.harry_loc, None) is True:
-                action = ("destroy", self.harry_loc)
-                print(f"Action Selected: {action} (Destroying trap in current vault cell)")
-                self.kb.tell(~cell_symbol("Trap", self.harry_loc[0], self.harry_loc[1]))
-                self.Trap_beliefs[self.harry_loc] = False
+            # If we have *not* collected this vault yet:
+            if self.harry_loc not in self.collected_vaults:
+                action = ("collect",)
+                print(f"Action Selected: {action} (Collecting vault)")
+                # Mark it as collected so we don't keep re-collecting
+                self.collected_vaults.add(self.harry_loc)
+                # Optionally mark it not a vault so we don't keep planning to come back
+                self.Vault_beliefs[self.harry_loc] = False
 
-                self.print_debug_info(label="After Destroying trap in vault cell")
-
+                self.print_debug_info(label="After Collecting Vault")
                 print("=============================\n")
                 return action
             else:
-                action = ("collect",)
-                print(f"Action Selected: {action} (Collecting vault)")
+                # Already collected this vault => treat it as no longer a vault
+                self.Vault_beliefs[self.harry_loc] = False
 
-                self.print_debug_info(label="After Collecting Vault")
-
-                print("=============================\n")
-                return action
-
-        # 7. Check for any adjacent definite Vaults that have a Trap
+        # 7. Check for adjacent vaults that also have a trap
         adjacent_vaults_with_traps = [
             cell
             for cell in self.get_4_neighbors(*self.harry_loc)
@@ -343,22 +344,18 @@ class GringottsController:
             print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
             self.kb.tell(~cell_symbol("Trap", target[0], target[1]))
             self.Trap_beliefs[target] = False
-
             self.print_debug_info(label="After Destroying trap in adjacent vault")
-
             print("=============================\n")
             return action
 
-        # 8. Check for any adjacent definite Traps
+        # 8. Check for adjacent definite traps
         destroy_target = self.find_adjacent_definite_trap()
         if destroy_target:
             action = ("destroy", destroy_target)
             print(f"Action Selected: {action} (Destroying adjacent definite trap)")
             self.kb.tell(~cell_symbol("Trap", destroy_target[0], destroy_target[1]))
             self.Trap_beliefs[destroy_target] = False
-
             self.print_debug_info(label="After Destroying adjacent trap")
-
             print("=============================\n")
             return action
 
@@ -367,9 +364,11 @@ class GringottsController:
         for r in range(self.rows):
             for c in range(self.cols):
                 if self.Vault_beliefs.get((r, c), None) is True:
-                    definite_vaults.append((r, c))
+                    # Only consider if *not* already collected
+                    if (r, c) not in self.collected_vaults:
+                        definite_vaults.append((r, c))
 
-        # 10. If any definite Vault exists, plan a path to it
+        # 10. If any definite vault, plan path
         if definite_vaults:
             target_vault = self.get_closest_vault(definite_vaults)
             path = self.a_star_path(self.harry_loc, target_vault)
@@ -379,28 +378,24 @@ class GringottsController:
                 print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
                 self.harry_loc = next_step
                 self.visited.add(next_step)
-
                 self.print_debug_info(label="After Move Action")
-
                 print("=============================\n")
                 return action
 
-        # 11. If sulfur is detected, infer and destroy possible traps (fallback)
+        # 11. If sulfur is detected, do fallback
         if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
             possible_traps = self.infer_possible_traps()
             if possible_traps:
                 for trap in possible_traps:
                     if trap not in self.visited and self.Trap_beliefs.get(trap, None) is not False:
-                        print(f"Action Selected: ('destroy', {trap}) (Destroying inferred possible trap)")
+                        print(f"Action Selected: ('destroy', {trap}) (Destroying fallback sulfur trap)")
                         self.kb.tell(~cell_symbol("Trap", trap[0], trap[1]))
                         self.Trap_beliefs[trap] = False
-
                         self.print_debug_info(label="After Destroying fallback sulfur trap")
-
                         print("=============================\n")
                         return ("destroy", trap)
 
-        # 12. If no definite Vaults, plan a path to the most probable vault
+        # 12. If no definite vaults, plan path to the most probable vault
         path = self.plan_path_to_goal()
         if path and path != [self.harry_loc]:
             next_step = path[1]
@@ -408,37 +403,28 @@ class GringottsController:
             print(f"Action Selected: {action} (Moving towards most probable vault)")
             self.harry_loc = next_step
             self.visited.add(next_step)
-
             self.print_debug_info(label="After Move Action (probable vault)")
-
             print("=============================\n")
             return action
 
         # 13. Otherwise, wait
         action = ("wait",)
         print(f"Action Selected: {action} (No viable action found, waiting)")
-
         self.print_debug_info(label="After Wait Action")
-
         print("=============================\n")
         return action
 
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
+
     def print_debug_info(self, label=""):
-        """
-        Print out all relevant debugging information about the current state:
-          - KB clauses
-          - Belief dictionaries
-          - Collected wrong vaults
-          - Observation constraints
-          - Possible traps to destroy
-          - Visited cells
-        """
         print(f"--- DEBUG INFO {('[%s]' % label) if label else ''} ---")
-        print("KB clauses:", self.kb.clauses)  # This is a list of logic expressions
+        print("KB clauses:", self.kb.clauses)
         print("Trap Beliefs:", self.Trap_beliefs)
         print("Dragon Beliefs:", self.Dragon_beliefs)
         print("Vault Beliefs:", self.Vault_beliefs)
-        print("Collected Wrong Vaults:", self.collected_wrong_vaults)
+        print("Collected Vaults:", self.collected_vaults)
         print("Observation Constraints:", self.obs_constraints)
         print("Possible Traps to Destroy:", self.possible_traps_to_destroy)
         print("Visited Cells:", self.visited)
@@ -446,19 +432,18 @@ class GringottsController:
 
     def get_closest_vault(self, definite_vaults):
         """
-        Return the closest definite Vault based on Manhattan distance.
+        Return the closest definite Vault by Manhattan distance.
         """
-        min_distance = math.inf
-        closest_vault = None
-        for vault in definite_vaults:
-            distance = abs(vault[0] - self.harry_loc[0]) + abs(vault[1] - self.harry_loc[1])
-            if distance < min_distance:
-                min_distance = distance
-                closest_vault = vault
-        return closest_vault
+        min_dist = math.inf
+        best = None
+        for vcell in definite_vaults:
+            dist = abs(vcell[0] - self.harry_loc[0]) + abs(vcell[1] - self.harry_loc[1])
+            if dist < min_dist:
+                min_dist = dist
+                best = vcell
+        return best
 
     def find_adjacent_definite_trap(self):
-        """Return the location of an adjacent Trap if known = True."""
         (r, c) = self.harry_loc
         for (nr, nc) in self.get_4_neighbors(r, c):
             if self.Trap_beliefs.get((nr, nc), None) is True:
@@ -467,26 +452,19 @@ class GringottsController:
 
     def infer_possible_traps(self):
         """
-        Infer possible trap locations based on current sulfur constraints and beliefs.
-        Returns a list of cells that might contain traps.
+        If sulfur is detected at some cell, then at least one neighbor is a trap.
+        Return all neighbors (not known trap=False) as possible traps.
         """
         possible_traps = set()
-        for (constraint, cell) in self.obs_constraints:
+        for constraint, cell in self.obs_constraints:
             if constraint == "SULFUR+":
                 neighbors = self.get_4_neighbors(cell[0], cell[1])
-                for neighbor in neighbors:
-                    if self.Trap_beliefs.get(neighbor, None) is not False:
-                        possible_traps.add(neighbor)
+                for nb in neighbors:
+                    if self.Trap_beliefs.get(nb, None) is not False:
+                        possible_traps.add(nb)
         return list(possible_traps)
 
-    def define_symbols(self):
-        pass  # We skip predefining anything; cell_symbol suffices
-
     def calculate_vault_probabilities(self):
-        """
-        Calculate a refined probability for each cell containing a vault,
-        based on current knowledge and proximity to visited cells.
-        """
         probabilities = {}
         for r in range(self.rows):
             for c in range(self.cols):
@@ -495,6 +473,7 @@ class GringottsController:
                 elif self.Vault_beliefs.get((r, c), None) is False:
                     probabilities[(r, c)] = 0.0
                 else:
+                    # Uncertain
                     if (r, c) not in self.visited:
                         neighbors = self.get_4_neighbors(r, c)
                         if any(n in self.visited for n in neighbors):
@@ -507,60 +486,56 @@ class GringottsController:
 
     def plan_path_to_goal(self):
         """
-        Plan a path to a Vault or a safe cell, using A* with combined probability and distance heuristics.
+        Plan path to vault or safe cell. A* with probability-based heuristic.
         """
         vault_probs = self.calculate_vault_probabilities()
-
-        # 1. Definite Vaults
         goals = []
+
+        # 1. Definite vaults
         for r in range(self.rows):
             for c in range(self.cols):
-                if self.Vault_beliefs.get((r, c), None) is True:
+                if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
                     goals.append(((r, c), vault_probs.get((r, c), 1.0)))
 
-        # 2. Probable Vaults
+        # 2. If none, probable vaults
         if not goals:
             for r in range(self.rows):
                 for c in range(self.cols):
                     if self.Vault_beliefs.get((r, c), None) is None:
                         score = vault_probs.get((r, c), 0)
                         if score > 0:
-                            distance = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
-                            combined_score = score / (distance + 1)
+                            dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
+                            combined_score = score / (dist + 1)
                             goals.append(((r, c), combined_score))
 
-        # 3. Safe Cells (No known trap/dragon)
+        # 3. If still none, safe cells
         if not goals:
             for r in range(self.rows):
                 for c in range(self.cols):
-                    if self.Trap_beliefs.get((r, c), False) is False and \
-                       self.Dragon_beliefs.get((r, c), False) is False:
-                        if (r, c) not in self.visited:
-                            distance = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
-                            combined_score = 0.2 / (distance + 1)
-                            goals.append(((r, c), combined_score))
+                    if (self.Trap_beliefs.get((r, c), False) is False and
+                       self.Dragon_beliefs.get((r, c), False) is False and
+                       (r, c) not in self.visited):
+                        dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
+                        combined_score = 0.2 / (dist + 1)
+                        goals.append(((r, c), combined_score))
 
         if not goals:
             return None
 
         goals.sort(key=lambda x: x[1], reverse=True)
         best_goal, _ = goals[0]
-
         path = self.a_star_path(self.harry_loc, best_goal)
         if path:
             print(f" - Planned path to goal {best_goal}: {path}")
             return path
         else:
+            # fallback BFS
             path = self.bfs_path(self.harry_loc, best_goal)
             print(f" - Planned path to goal {best_goal} via BFS: {path}")
             return path
 
     def a_star_path(self, start, goal):
-        """
-        A* pathfinding avoiding known traps/dragons and inferred possible traps.
-        """
         from heapq import heappush, heappop
-
         open_set = []
         heappush(open_set, (self.heuristic(start, goal), 0, start, [start]))
         closed_set = set()
@@ -575,11 +550,11 @@ class GringottsController:
             for neighbor in self.get_4_neighbors(current[0], current[1]):
                 if neighbor in closed_set:
                     continue
-                if self.Trap_beliefs.get(neighbor, None) is True:
+                if self.Trap_beliefs.get(neighbor, False) is True:
                     continue
-                if self.Dragon_beliefs.get(neighbor, None) is True:
+                if self.Dragon_beliefs.get(neighbor, False) is True:
                     continue
-                # Avoid possible traps if we don't want to step there
+                # Avoid possible traps
                 if any(neighbor in self.infer_possible_traps() for _ in [0]):
                     continue
                 new_cost = cost + 1
@@ -588,18 +563,16 @@ class GringottsController:
         return None
 
     def bfs_path(self, start, goal):
-        """BFS path avoiding known traps/dragons."""
         if start == goal:
             return [start]
         visited = set([start])
         queue = deque([(start, [start])])
-
         while queue:
             current, path = queue.popleft()
             for nbd in self.get_4_neighbors(current[0], current[1]):
-                if self.Trap_beliefs.get(nbd, None) is True:
+                if self.Trap_beliefs.get(nbd, False) is True:
                     continue
-                if self.Dragon_beliefs.get(nbd, None) is True:
+                if self.Dragon_beliefs.get(nbd, False) is True:
                     continue
                 if nbd not in visited:
                     visited.add(nbd)
@@ -612,13 +585,13 @@ class GringottsController:
     def get_4_neighbors(self, r, c):
         results = []
         if r > 0:
-            results.append((r - 1, c))
+            results.append((r-1, c))
         if r < self.rows - 1:
-            results.append((r + 1, c))
+            results.append((r+1, c))
         if c > 0:
-            results.append((r, c - 1))
+            results.append((r, c-1))
         if c < self.cols - 1:
-            results.append((r, c + 1))
+            results.append((r, c+1))
         return results
 
     def heuristic(self, a, b):
