@@ -1,10 +1,7 @@
-# ex2_refactored.py
-
-ids = ['123456789']  # Replace with your ID(s)
-
 import math
 from collections import deque, defaultdict
-from utils import Expr, Symbol, expr, PropKB, pl_resolution, first  # Import necessary classes and functions
+from heapq import heappush, heappop
+from utils import Expr, Symbol, expr, PropKB, pl_resolution, first  # Ensure you have these utilities implemented
 
 
 def cell_symbol(kind, r, c):
@@ -83,8 +80,11 @@ class GringottsController:
     # -------------------------------------------------------------------------
 
     def define_symbols(self):
-        # We skip predefining anything; cell_symbol suffices
-        pass
+        # Predefine symbols for all cells
+        for r in range(self.rows):
+            for c in range(self.cols):
+                for kind in ["Trap", "Vault", "Dragon"]:
+                    cell_symbol(kind, r, c)
 
     def add_knowledge_constraints(self):
         """
@@ -360,10 +360,8 @@ class GringottsController:
         definite_vaults = []
         for r in range(self.rows):
             for c in range(self.cols):
-                if self.Vault_beliefs.get((r, c), None) is True:
-                    # Only consider if *not* already collected
-                    if (r, c) not in self.collected_vaults:
-                        definite_vaults.append((r, c))
+                if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
+                    definite_vaults.append((r, c))
 
         # 10. If any definite vault, plan path
         if definite_vaults:
@@ -407,7 +405,24 @@ class GringottsController:
                                 print("=============================\n")
                                 return action
 
-        # 12. If no definite vaults, plan path to the most probable vault
+        # 12. Identify alternative goals (e.g., safe cells or exploration)
+        alternative_goals = self.identify_alternative_goals()
+        if alternative_goals:
+            target = self.get_best_alternative_goal(alternative_goals)
+            if target:
+                path = self.a_star_path(self.harry_loc, target)
+                if path and len(path) > 1:
+                    next_step = path[1]
+                    action = ("move", next_step)
+                    print(f"Action Selected: {action} (Moving towards alternative goal at {target})")
+                    self.harry_loc = next_step
+                    self.visited.add(next_step)
+                    self.path_history.append(next_step)
+                    self.print_debug_info(label="After Move Action (alternative goal)")
+                    print("=============================\n")
+                    return action
+
+        # 13. If no definite vaults or alternative goals, explore unvisited cells
         path = self.plan_path_to_goal()
         if path and len(path) > 1:
             next_step = path[1]
@@ -420,7 +435,7 @@ class GringottsController:
             print("=============================\n")
             return action
 
-        # 13. Otherwise, wait
+        # 14. Otherwise, wait
         action = ("wait",)
         print(f"Action Selected: {action} (No viable action found, waiting)")
         self.print_debug_info(label="After Wait Action")
@@ -433,13 +448,13 @@ class GringottsController:
 
     def print_debug_info(self, label=""):
         print(f"--- DEBUG INFO {('[%s]' % label) if label else ''} ---")
-        # print("KB clauses:", self.kb.clauses)
+        print("KB clauses:", self.kb.clauses)
         print("Trap Beliefs:", self.Trap_beliefs)
         print("Dragon Beliefs:", self.Dragon_beliefs)
         print("Vault Beliefs:", self.Vault_beliefs)
         print("Collected Vaults:", self.collected_vaults)
         print("Observation Constraints:", self.obs_constraints)
-        print("Possible Traps to Destroy:", self.possible_traps_to_destroy)
+        print("Possible Traps to Destroy:", list(self.possible_traps_to_destroy))
         print("Visited Cells:", self.visited)
         print("Path History:", list(self.path_history))
         print("---------------------------------------\n")
@@ -457,13 +472,6 @@ class GringottsController:
                 best = vcell
         return best
 
-    def find_adjacent_definite_trap(self):
-        (r, c) = self.harry_loc
-        for (nr, nc) in self.get_4_neighbors(r, c):
-            if self.Trap_beliefs.get((nr, nc), None) is True:
-                return (nr, nc)
-        return None
-
     def infer_possible_traps(self):
         """
         If sulfur is detected at some cell, then at least one neighbor is a trap.
@@ -479,6 +487,9 @@ class GringottsController:
         return list(possible_traps)
 
     def calculate_vault_probabilities(self):
+        """
+        Calculate probabilities for each cell being a vault based on current beliefs.
+        """
         probabilities = {}
         for r in range(self.rows):
             for c in range(self.cols):
@@ -550,7 +561,9 @@ class GringottsController:
             return path
 
     def a_star_path(self, start, goal):
-        from heapq import heappush, heappop
+        """
+        A* pathfinding algorithm implementation.
+        """
         open_set = []
         heappush(open_set, (self.heuristic(start, goal), 0, start, [start]))
         closed_set = set()
@@ -578,6 +591,9 @@ class GringottsController:
         return None
 
     def bfs_path(self, start, goal):
+        """
+        BFS pathfinding algorithm implementation.
+        """
         if start == goal:
             return [start]
         visited = set([start])
@@ -600,6 +616,9 @@ class GringottsController:
         return None
 
     def get_4_neighbors(self, r, c):
+        """
+        Return a list of 4-directional neighbors for a cell.
+        """
         results = []
         if r > 0:
             results.append((r - 1, c))
@@ -612,6 +631,9 @@ class GringottsController:
         return results
 
     def heuristic(self, a, b):
+        """
+        Manhattan distance heuristic for A*.
+        """
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     def update_kb_with_path_history(self):
@@ -625,7 +647,7 @@ class GringottsController:
         # Identify cells adjacent to any sulfur detection
         sulfur_adjacent = set()
         for cell in sulfur_cells:
-            neighbors = self.get_4_neighbors(*cell)
+            neighbors = self.get_4_neighbors(cell[0], cell[1])
             sulfur_adjacent.update(neighbors)
 
         for cell in self.path_history:
@@ -655,6 +677,261 @@ class GringottsController:
         r1, c1 = cell1
         r2, c2 = cell2
         return (abs(r1 - r2) == 1 and c1 == c2) or (abs(c1 - c2) == 1 and r1 == r2)
+
+    def identify_alternative_goals(self):
+        """
+        Identify alternative goals such as safe cells or areas with high exploration value.
+        """
+        alternative_goals = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if (self.Trap_beliefs.get((r, c), False) is False and
+                    self.Dragon_beliefs.get((r, c), False) is False and
+                    (r, c) not in self.visited):
+                    # Assign a priority score based on distance and exploration value
+                    dist = self.heuristic(self.harry_loc, (r, c))
+                    score = 1 / (dist + 1)
+                    alternative_goals.append(((r, c), score))
+        return alternative_goals
+
+    def get_best_alternative_goal(self, alternative_goals):
+        """
+        Select the best alternative goal based on the highest priority score.
+        """
+        if not alternative_goals:
+            return None
+        alternative_goals.sort(key=lambda x: x[1], reverse=True)
+        return alternative_goals[0][0]
+
+    # -------------------------------------------------------------------------
+    # Pathfinding and Goal Planning
+    # -------------------------------------------------------------------------
+
+    def a_star_path(self, start, goal):
+        """
+        A* pathfinding algorithm implementation.
+        """
+        open_set = []
+        heappush(open_set, (self.heuristic(start, goal), 0, start, [start]))
+        closed_set = set()
+
+        while open_set:
+            est, cost, current, path = heappop(open_set)
+            if current == goal:
+                return path
+            if current in closed_set:
+                continue
+            closed_set.add(current)
+            for neighbor in self.get_4_neighbors(current[0], current[1]):
+                if neighbor in closed_set:
+                    continue
+                if self.Trap_beliefs.get(neighbor, False) is True:
+                    continue
+                if self.Dragon_beliefs.get(neighbor, False) is True:
+                    continue
+                # Avoid cells in path history inferred to have no traps/vaults
+                if neighbor in self.path_history:
+                    continue
+                new_cost = cost + 1
+                new_est = new_cost + self.heuristic(neighbor, goal)
+                heappush(open_set, (new_est, new_cost, neighbor, path + [neighbor]))
+        return None
+
+    def bfs_path(self, start, goal):
+        """
+        BFS pathfinding algorithm implementation.
+        """
+        if start == goal:
+            return [start]
+        visited = set([start])
+        queue = deque([(start, [start])])
+        while queue:
+            current, path = queue.popleft()
+            for nbd in self.get_4_neighbors(current[0], current[1]):
+                if self.Trap_beliefs.get(nbd, False) is True:
+                    continue
+                if self.Dragon_beliefs.get(nbd, False) is True:
+                    continue
+                if nbd in self.path_history:
+                    continue
+                if nbd not in visited:
+                    visited.add(nbd)
+                    new_path = path + [nbd]
+                    if nbd == goal:
+                        return new_path
+                    queue.append((nbd, new_path))
+        return None
+
+    def plan_path_to_goal(self):
+        """
+        Plan path to vault or safe cell. A* with probability-based heuristic.
+        """
+        vault_probs = self.calculate_vault_probabilities()
+        goals = []
+
+        # 1. Definite vaults
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
+                    goals.append(((r, c), vault_probs.get((r, c), 1.0)))
+
+        # 2. If none, probable vaults
+        if not goals:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Vault_beliefs.get((r, c), None) is None:
+                        score = vault_probs.get((r, c), 0)
+                        if score > 0:
+                            dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
+                            combined_score = score / (dist + 1)
+                            goals.append(((r, c), combined_score))
+
+        # 3. If still none, safe cells
+        if not goals:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if (self.Trap_beliefs.get((r, c), False) is False and
+                            self.Dragon_beliefs.get((r, c), False) is False and
+                            (r, c) not in self.visited):
+                        dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
+                        combined_score = 0.2 / (dist + 1)
+                        goals.append(((r, c), combined_score))
+
+        if not goals:
+            return None
+
+        # Prioritize goals based on combined score
+        goals.sort(key=lambda x: x[1], reverse=True)
+        best_goal, _ = goals[0]
+        path = self.a_star_path(self.harry_loc, best_goal)
+        if path:
+            print(f" - Planned path to goal {best_goal}: {path}")
+            return path
+        else:
+            # fallback BFS
+            path = self.bfs_path(self.harry_loc, best_goal)
+            print(f" - Planned path to goal {best_goal} via BFS: {path}")
+            return path
+
+    # -------------------------------------------------------------------------
+    # Path History and Knowledge Base Updates
+    # -------------------------------------------------------------------------
+
+    def update_kb_with_path_history(self):
+        """
+        Based on the path history, infer that neighboring cells do not contain vaults or traps
+        if no observations were made along the path. Exclude cells adjacent to sulfur detections.
+        """
+        # Identify all cells where sulfur was detected
+        sulfur_cells = [cell for constraint, cell in self.obs_constraints if constraint == "SULFUR+"]
+
+        # Identify cells adjacent to any sulfur detection
+        sulfur_adjacent = set()
+        for cell in sulfur_cells:
+            neighbors = self.get_4_neighbors(cell[0], cell[1])
+            sulfur_adjacent.update(neighbors)
+
+        for cell in self.path_history:
+            neighbors = self.get_4_neighbors(*cell)
+            for neighbor in neighbors:
+                # Skip cells adjacent to sulfur detections
+                if neighbor in sulfur_adjacent:
+                    continue
+                r, c = neighbor
+                # Infer no Vault if not already confirmed
+                if self.Vault_beliefs.get(neighbor, None) is not True:
+                    self.kb.tell(~cell_symbol("Vault", r, c))
+                    if self.Vault_beliefs.get(neighbor, None) is not False:
+                        self.Vault_beliefs[neighbor] = False
+                        print(f" - Inferred no Vault at {neighbor} based on path history.")
+                # Infer no Trap only if the cell does not have a Vault
+                if self.Trap_beliefs.get(neighbor, None) is not True and not self.Vault_beliefs.get(neighbor, False):
+                    self.kb.tell(~cell_symbol("Trap", r, c))
+                    if self.Trap_beliefs.get(neighbor, None) is not False:
+                        self.Trap_beliefs[neighbor] = False
+                        print(f" - Inferred no Trap at {neighbor} based on path history.")
+
+    # -------------------------------------------------------------------------
+    # Alternative Goals Identification
+    # -------------------------------------------------------------------------
+
+    def identify_alternative_goals(self):
+        """
+        Identify alternative goals such as safe cells or areas with high exploration value.
+        """
+        alternative_goals = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if (self.Trap_beliefs.get((r, c), False) is False and
+                    self.Dragon_beliefs.get((r, c), False) is False and
+                    (r, c) not in self.visited):
+                    # Assign a priority score based on distance and exploration value
+                    dist = self.heuristic(self.harry_loc, (r, c))
+                    score = 1 / (dist + 1)
+                    alternative_goals.append(((r, c), score))
+        return alternative_goals
+
+    def get_best_alternative_goal(self, alternative_goals):
+        """
+        Select the best alternative goal based on the highest priority score.
+        """
+        if not alternative_goals:
+            return None
+        alternative_goals.sort(key=lambda x: x[1], reverse=True)
+        return alternative_goals[0][0]
+
+    # -------------------------------------------------------------------------
+    # Other Helpers
+    # -------------------------------------------------------------------------
+
+    def calculate_vault_probabilities(self):
+        """
+        Calculate probabilities for each cell being a vault based on current beliefs.
+        """
+        probabilities = {}
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True:
+                    probabilities[(r, c)] = 1.0
+                elif self.Vault_beliefs.get((r, c), None) is False:
+                    probabilities[(r, c)] = 0.0
+                else:
+                    # Uncertain
+                    if (r, c) not in self.visited:
+                        neighbors = self.get_4_neighbors(r, c)
+                        if any(n in self.visited for n in neighbors):
+                            probabilities[(r, c)] = 0.3
+                        else:
+                            probabilities[(r, c)] = 0.1
+                    else:
+                        probabilities[(r, c)] = 0.0
+        return probabilities
+
+    def is_adjacent(self, cell1, cell2):
+        """
+        Check if two cells are adjacent (non-diagonal).
+        """
+        r1, c1 = cell1
+        r2, c2 = cell2
+        return (abs(r1 - r2) == 1 and c1 == c2) or (abs(c1 - c2) == 1 and r1 == r2)
+
+    # -------------------------------------------------------------------------
+    # Additional Pathfinding and Goal Planning Enhancements
+    # -------------------------------------------------------------------------
+
+    def find_adjacent_definite_trap(self):
+        """
+        Find an adjacent cell that is definitely a trap.
+        """
+        (r, c) = self.harry_loc
+        for (nr, nc) in self.get_4_neighbors(r, c):
+            if self.Trap_beliefs.get((nr, nc), None) is True:
+                return (nr, nc)
+        return None
+
+    # -------------------------------------------------------------------------
+    # String Representation
+    # -------------------------------------------------------------------------
 
     def __repr__(self):
         return "<GringottsController with KB-based inference using PropKB>"
