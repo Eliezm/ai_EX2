@@ -1,8 +1,9 @@
 # ex2_refactored.py
 
-ids = ['123456789']  # Replace with your ID(s)
+ids = ['123456789']
 
 import math
+import random
 from collections import deque, defaultdict
 from utils import Expr, Symbol, expr, PropKB, pl_resolution, first  # Import necessary classes and functions
 
@@ -420,7 +421,19 @@ class GringottsController:
             print("=============================\n")
             return action
 
-        # 13. Otherwise, wait
+        # 13. If no path is found, perform a random move to explore
+        random_move = self.get_random_move()
+        if random_move:
+            action = ("move", random_move)
+            print(f"Action Selected: {action} (Performing random move to explore)")
+            self.harry_loc = random_move
+            self.visited.add(random_move)
+            self.path_history.append(random_move)
+            self.print_debug_info(label="After Random Move Action")
+            print("=============================\n")
+            return action
+
+        # 14. Otherwise, wait (should rarely happen)
         action = ("wait",)
         print(f"Action Selected: {action} (No viable action found, waiting)")
         self.print_debug_info(label="After Wait Action")
@@ -439,7 +452,7 @@ class GringottsController:
         print("Vault Beliefs:", self.Vault_beliefs)
         print("Collected Vaults:", self.collected_vaults)
         print("Observation Constraints:", self.obs_constraints)
-        print("Possible Traps to Destroy:", self.possible_traps_to_destroy)
+        print("Possible Traps to Destroy:", list(self.possible_traps_to_destroy))
         print("Visited Cells:", self.visited)
         print("Path History:", list(self.path_history))
         print("---------------------------------------\n")
@@ -569,9 +582,10 @@ class GringottsController:
                     continue
                 if self.Dragon_beliefs.get(neighbor, False) is True:
                     continue
-                # Avoid cells in path history inferred to have no traps/vaults
+                # Only skip cells in path_history if they are known to have no traps or vaults
                 if neighbor in self.path_history:
-                    continue
+                    if self.Vault_beliefs.get(neighbor, None) is False and self.Trap_beliefs.get(neighbor, None) is False:
+                        continue
                 new_cost = cost + 1
                 new_est = new_cost + self.heuristic(neighbor, goal)
                 heappush(open_set, (new_est, new_cost, neighbor, path + [neighbor]))
@@ -589,8 +603,10 @@ class GringottsController:
                     continue
                 if self.Dragon_beliefs.get(nbd, False) is True:
                     continue
+                # Only skip cells in path_history if they are known to have no traps or vaults
                 if nbd in self.path_history:
-                    continue
+                    if self.Vault_beliefs.get(nbd, None) is False and self.Trap_beliefs.get(nbd, None) is False:
+                        continue
                 if nbd not in visited:
                     visited.add(nbd)
                     new_path = path + [nbd]
@@ -655,6 +671,27 @@ class GringottsController:
         r1, c1 = cell1
         r2, c2 = cell2
         return (abs(r1 - r2) == 1 and c1 == c2) or (abs(c1 - c2) == 1 and r1 == r2)
+
+    def get_random_move(self):
+        """
+        Generate a random valid move from the current location.
+        """
+        neighbors = self.get_4_neighbors(*self.harry_loc)
+        valid_moves = [
+            cell for cell in neighbors
+            if self.Trap_beliefs.get(cell, False) is not True
+            and self.Dragon_beliefs.get(cell, False) is not True
+        ]
+        # Exclude cells adjacent to path_history if they are known to be safe
+        valid_moves = [
+            cell for cell in valid_moves
+            if not (cell in self.path_history and
+                    self.Vault_beliefs.get(cell, None) is False and
+                    self.Trap_beliefs.get(cell, None) is False)
+        ]
+        if valid_moves:
+            return random.choice(valid_moves)
+        return None
 
     def __repr__(self):
         return "<GringottsController with KB-based inference using PropKB>"
