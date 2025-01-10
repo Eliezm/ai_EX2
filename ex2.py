@@ -2,6 +2,7 @@
 
 ids = ['123456789']
 
+
 import math
 import random
 from collections import deque, defaultdict
@@ -53,6 +54,9 @@ class GringottsController:
         # Track path history for inference (last 10 cells)
         self.path_history = deque(maxlen=10)
         self.path_history.append(harry_loc)
+
+        # Define the central point of the grid
+        self.center = (self.rows // 2, self.cols // 2)
 
         # Mark the starting cell as definitely not a Trap and not a Dragon (Harry is there)
         r0, c0 = harry_loc
@@ -513,16 +517,25 @@ class GringottsController:
 
     def plan_path_to_goal(self):
         """
-        Plan path to vault or safe cell. A* with probability-based heuristic.
+        Plan path to vault or safe cell. A* with probability-based and centrality heuristic.
         """
         vault_probs = self.calculate_vault_probabilities()
         goals = []
+
+        # Define central point
+        center_r, center_c = self.center
+
+        # Calculate maximum possible distance for normalization
+        max_distance = self.rows + self.cols
 
         # 1. Definite vaults
         for r in range(self.rows):
             for c in range(self.cols):
                 if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
-                    goals.append(((r, c), vault_probs.get((r, c), 1.0)))
+                    distance_to_center = abs(r - center_r) + abs(c - center_c)
+                    centrality_score = (max_distance - distance_to_center) / max_distance  # Higher for central tiles
+                    combined_score = vault_probs.get((r, c), 1.0) * 1.5 + centrality_score  # Weighted vault probability
+                    goals.append(((r, c), combined_score))
 
         # 2. If none, probable vaults
         if not goals:
@@ -532,7 +545,9 @@ class GringottsController:
                         score = vault_probs.get((r, c), 0)
                         if score > 0:
                             dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
-                            combined_score = score / (dist + 1)
+                            distance_to_center = abs(r - center_r) + abs(c - center_c)
+                            centrality_score = (max_distance - distance_to_center) / max_distance
+                            combined_score = (score / (dist + 1)) + (centrality_score * 0.5)
                             goals.append(((r, c), combined_score))
 
         # 3. If still none, safe cells
@@ -543,7 +558,9 @@ class GringottsController:
                             self.Dragon_beliefs.get((r, c), False) is False and
                             (r, c) not in self.visited):
                         dist = abs(r - self.harry_loc[0]) + abs(c - self.harry_loc[1])
-                        combined_score = 0.2 / (dist + 1)
+                        distance_to_center = abs(r - center_r) + abs(c - center_c)
+                        centrality_score = (max_distance - distance_to_center) / max_distance
+                        combined_score = (0.2 / (dist + 1)) + (centrality_score * 0.3)
                         goals.append(((r, c), combined_score))
 
         if not goals:
