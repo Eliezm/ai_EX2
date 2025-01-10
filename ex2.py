@@ -120,7 +120,7 @@ class GringottsController:
         print(f"Turn {self.turn_count + 1}: Observations Received: {obs_list}")
 
         sulfur_detected = False
-        # no_sulfur_detected = False
+        no_sulfur_detected = False
 
         for obs in obs_list:
             obs_kind = obs[0]
@@ -149,20 +149,12 @@ class GringottsController:
                     self.visited.add((dr, dc))
                     print(f" - Dragon detected at {(dr, dc)}. (Dragon=True, Vault=False, Trap=False)")
 
-            elif obs_kind == "trap":
-                (tr, tc) = obs[1]
-                t_sym = cell_symbol("Trap", tr, tc)
-                if self.Trap_beliefs.get((tr, tc), None) != True:
-                    self.kb.tell(t_sym)
-                    self.Trap_beliefs[(tr, tc)] = True
-                    self.visited.add((tr, tc))
-                    print(f" - Trap detected at {(tr, tc)}. Trap Beliefs set to True.")
-
             elif obs_kind == "sulfur":
                 sulfur_detected = True
                 print(" - Sulfur detected near Harry's location.")
 
-            elif not sulfur_detected:
+            else:
+                # no_sulfur_detected = True
                 print(" - No sulfur detected near Harry's location.")
 
         # Handle sulfur constraints for current cell
@@ -179,18 +171,11 @@ class GringottsController:
                 self.kb.tell(expr(sulfur_clause))
                 print(f" - Updating KB with sulfur constraint: {sulfur_clause}")
             self.obs_constraints.append(("SULFUR+", self.harry_loc))
-        else:
+        elif no_sulfur_detected:
             if neighbor_traps:
                 no_trap_clause = " & ".join(str(~t) for t in neighbor_traps)
                 self.kb.tell(expr(no_trap_clause))
                 print(f" - Updating KB with no sulfur constraint: {no_trap_clause}")
-                # Infer that each neighbor does not have a trap
-                for t_sym in neighbor_traps:
-                    cell = (t_sym.args[0], t_sym.args[1])  # Assuming Symbol format "Trap_r_c"
-                    if self.Trap_beliefs.get(cell, None) != False:
-                        self.kb.tell(~t_sym)
-                        self.Trap_beliefs[cell] = False
-                        print(f"   => Inferred no trap at {cell} due to no sulfur.")
             self.obs_constraints.append(("SULFUR0", self.harry_loc))
 
         print()
@@ -305,21 +290,10 @@ class GringottsController:
                         print("Possible traps list (appended):", self.possible_traps_to_destroy)
 
         # 5. If there's a trap to destroy in the queue, do that first
-        # if self.possible_traps_to_destroy:
-        #     trap_to_destroy = self.possible_traps_to_destroy[0]
-        #     self.possible_traps_to_destroy = self.possible_traps_to_destroy[1:]
-        #
-        #     action = ("destroy", trap_to_destroy)
-        #     print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
-        #     # Mark as safe
-        #     self.kb.tell(~cell_symbol("Trap", trap_to_destroy[0], trap_to_destroy[1]))
-        #     self.Trap_beliefs[trap_to_destroy] = False
-        #
-        #     self.print_debug_info(label="After Destroying a Trap")
-        #     print("=============================\n")
-        #     return action
         if self.possible_traps_to_destroy:
-            trap_to_destroy = self.possible_traps_to_destroy.popleft()
+            trap_to_destroy = self.possible_traps_to_destroy[0]
+            self.possible_traps_to_destroy = self.possible_traps_to_destroy[1:]
+
             action = ("destroy", trap_to_destroy)
             print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
             # Mark as safe
@@ -424,20 +398,12 @@ class GringottsController:
             print("=============================\n")
             return action
 
-        # As an alternative to waiting, move to an unvisited cell
-        unvisited = [(r, c) for r in range(self.rows) for c in range(self.cols) if (r, c) not in self.visited]
-        if unvisited:
-            target = unvisited[0]
-            path = self.a_star_path(self.harry_loc, target)
-            if path and len(path) > 1:
-                next_step = path[1]
-                action = ("move", next_step)
-                print(f"Action Selected: {action} (Exploring towards unvisited cell at {target})")
-                self.harry_loc = next_step
-                self.visited.add(next_step)
-                self.print_debug_info(label="After Move to Explore")
-                print("=============================\n")
-                return action
+        # 13. Otherwise, wait
+        action = ("wait",)
+        print(f"Action Selected: {action} (No viable action found, waiting)")
+        self.print_debug_info(label="After Wait Action")
+        print("=============================\n")
+        return action
 
     # -------------------------------------------------------------------------
     # Helpers
