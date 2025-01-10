@@ -43,7 +43,7 @@ class GringottsController:
         self.obs_constraints = []
 
         # Track possible traps to destroy
-        self.possible_traps_to_destroy = []
+        self.possible_traps_to_destroy = deque()
 
         # Memory of visited cells
         self.visited = set()
@@ -74,8 +74,6 @@ class GringottsController:
         # Initialize inference cache
         self.inference_cache = {}  # {(cell, kind): True/False}
 
-        # We keep a queue of planned actions if you want, but not strictly needed
-        self.current_plan = deque()
 
     # -------------------------------------------------------------------------
     # Knowledge-Base Setup
@@ -291,8 +289,8 @@ class GringottsController:
 
         # 5. If there's a trap to destroy in the queue, do that first
         if self.possible_traps_to_destroy:
-            trap_to_destroy = self.possible_traps_to_destroy[0]
-            self.possible_traps_to_destroy = self.possible_traps_to_destroy[1:]
+            trap_to_destroy = self.possible_traps_to_destroy.popleft()
+            # self.possible_traps_to_destroy = self.possible_traps_to_destroy[1:]
 
             action = ("destroy", trap_to_destroy)
             print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
@@ -339,16 +337,6 @@ class GringottsController:
             print("=============================\n")
             return action
 
-        # 8. Check for adjacent definite traps
-        destroy_target = self.find_adjacent_definite_trap()
-        if destroy_target:
-            action = ("destroy", destroy_target)
-            print(f"Action Selected: {action} (Destroying adjacent definite trap)")
-            self.kb.tell(~cell_symbol("Trap", destroy_target[0], destroy_target[1]))
-            self.Trap_beliefs[destroy_target] = False
-            self.print_debug_info(label="After Destroying adjacent trap")
-            print("=============================\n")
-            return action
 
         # 9. Identify all definite Vaults
         definite_vaults = []
