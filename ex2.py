@@ -2,7 +2,6 @@
 
 ids = ['123456789']
 
-
 import math
 import random
 from collections import deque, defaultdict
@@ -276,6 +275,14 @@ class GringottsController:
         for obs in observations:
             if obs[0] in ["vault", "dragon", "trap"]:
                 affected_cells.add(obs[1])
+
+        if not affected_cells:
+            neighbors = self.get_4_neighbors(*self.harry_loc)
+            affected_cells.update(neighbors)
+            print(f" - No affected cells from observations. Adding neighbors {neighbors} to affected cells.")
+
+        ### If no affected cells added because of observations, then add to affected all 4 neighbors to harry's position
+
 
         # 3. Run inference
         self.run_inference(affected_cells=affected_cells)
@@ -668,13 +675,12 @@ class GringottsController:
                 if neighbor in sulfur_adjacent:
                     continue
                 r, c = neighbor
-                # Infer no Vault if not already confirmed
+                # Only infer ~Vault and ~Trap if no observations contradict
                 if self.Vault_beliefs.get(neighbor, None) is not True:
                     self.kb.tell(~cell_symbol("Vault", r, c))
                     if self.Vault_beliefs.get(neighbor, None) is not False:
                         self.Vault_beliefs[neighbor] = False
                         print(f" - Inferred no Vault at {neighbor} based on path history.")
-                # Infer no Trap only if the cell does not have a Vault
                 if self.Trap_beliefs.get(neighbor, None) is not True and not self.Vault_beliefs.get(neighbor, False):
                     self.kb.tell(~cell_symbol("Trap", r, c))
                     if self.Trap_beliefs.get(neighbor, None) is not False:
