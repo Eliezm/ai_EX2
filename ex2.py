@@ -1,19 +1,11 @@
-# ex2_refactored.py
+# ex2.py
 
-ids = ['123456789']
+ids = ['123456789']  # <-- Update with your actual ID(s)
 
 import math
 import random
 from collections import deque, defaultdict
 from utils import Expr, Symbol, expr, PropKB, pl_resolution, first  # Import necessary classes and functions
-
-
-def cell_symbol(kind, r, c):
-    """
-    Return a propositional symbol for e.g. 'Trap_0_1' or 'Vault_1_1'.
-    `kind` is a string: "Trap", "Vault", or "Dragon".
-    """
-    return Symbol(f"{kind}_{r}_{c}")
 
 
 class GringottsController:
@@ -28,14 +20,19 @@ class GringottsController:
         # Initialize the Knowledge Base
         self.kb = PropKB()
 
-        # Define Symbols for all cells and add constraints to the KB
-        self.define_symbols()
+        # Initialize symbol caches
+        self.vault_symbols = {}
+        self.dragon_symbols = {}
+        self.trap_symbols = {}
+        self.define_symbols()  # Predefine all symbols
+
+        # Add constraints to the KB
         self.add_knowledge_constraints()
 
         # Initialize belief dictionaries
-        self.Trap_beliefs = {}  # {(r, c): True/False/None}
+        self.Trap_beliefs = {}    # {(r, c): True/False/None}
         self.Dragon_beliefs = {}  # {(r, c): True/False/None}
-        self.Vault_beliefs = {}  # {(r, c): True/False/None}
+        self.Vault_beliefs = {}   # {(r, c): True/False/None}
 
         # Keep track of vaults already "collected" so we won't collect them repeatedly
         self.collected_vaults = set()
@@ -59,8 +56,8 @@ class GringottsController:
 
         # Mark the starting cell as definitely not a Trap and not a Dragon (Harry is there)
         r0, c0 = harry_loc
-        self.kb.tell(~cell_symbol("Trap", r0, c0))
-        self.kb.tell(~cell_symbol("Dragon", r0, c0))
+        self.kb.tell(~self.trap_symbols[(r0, c0)])
+        self.kb.tell(~self.dragon_symbols[(r0, c0)])
         self.Trap_beliefs[(r0, c0)] = False
         self.Dragon_beliefs[(r0, c0)] = False
 
@@ -79,16 +76,38 @@ class GringottsController:
         print("Vault Beliefs:", self.Vault_beliefs)
         print("--------------------------------------\n")
 
-        # Initialize inference cache
-        self.inference_cache = {}  # {(cell, kind): True/False}
+        # Enhanced inference cache: store symbol => Boolean
+        # (True if proven, False if disproven)
+        # e.g., "Vault_0_1" => True
+        self.inference_cache = {}
 
     # -------------------------------------------------------------------------
     # Knowledge-Base Setup
     # -------------------------------------------------------------------------
 
     def define_symbols(self):
-        # We skip predefining anything; cell_symbol suffices
-        pass
+        """
+        Predefine and cache all symbols for Vault, Dragon, and Trap for every cell.
+        """
+        for r in range(self.rows):
+            for c in range(self.cols):
+                self.vault_symbols[(r, c)] = Symbol(f"Vault_{r}_{c}")
+                self.dragon_symbols[(r, c)] = Symbol(f"Dragon_{r}_{c}")
+                self.trap_symbols[(r, c)] = Symbol(f"Trap_{r}_{c}")
+
+    def cell_symbol(self, kind, r, c):
+        """
+        Retrieve the cached propositional symbol for a given kind and cell.
+        `kind` is a string: "Trap", "Vault", or "Dragon".
+        """
+        if kind == "Vault":
+            return self.vault_symbols.get((r, c))
+        elif kind == "Dragon":
+            return self.dragon_symbols.get((r, c))
+        elif kind == "Trap":
+            return self.trap_symbols.get((r, c))
+        else:
+            raise ValueError(f"Unknown kind: {kind}")
 
     def add_knowledge_constraints(self):
         """
@@ -100,9 +119,9 @@ class GringottsController:
         exclusivity_clauses = []
         for r in range(self.rows):
             for c in range(self.cols):
-                v = cell_symbol("Vault", r, c)
-                d = cell_symbol("Dragon", r, c)
-                t = cell_symbol("Trap", r, c)
+                v = self.vault_symbols[(r, c)]
+                d = self.dragon_symbols[(r, c)]
+                t = self.trap_symbols[(r, c)]
 
                 # 1. Not both Vault and Dragon
                 exclusivity_clauses.append(~v | ~d)
@@ -124,14 +143,13 @@ class GringottsController:
         print(f"Turn {self.turn_count + 1}: Observations Received: {obs_list}")
 
         sulfur_detected = False
-        no_sulfur_detected = False
 
         for obs in obs_list:
             obs_kind = obs[0]
             if obs_kind == "vault":
                 (vr, vc) = obs[1]
-                v_sym = cell_symbol("Vault", vr, vc)
-                d_sym = cell_symbol("Dragon", vr, vc)
+                v_sym = self.vault_symbols.get((vr, vc))
+                d_sym = self.dragon_symbols.get((vr, vc))
                 if self.Vault_beliefs.get((vr, vc), None) is not True:
                     self.kb.tell(v_sym)
                     self.kb.tell(~d_sym)
@@ -141,8 +159,8 @@ class GringottsController:
 
             elif obs_kind == "dragon":
                 (dr, dc) = obs[1]
-                d_sym = cell_symbol("Dragon", dr, dc)
-                v_sym = cell_symbol("Vault", dr, dc)
+                d_sym = self.dragon_symbols.get((dr, dc))
+                v_sym = self.vault_symbols.get((dr, dc))
                 if self.Dragon_beliefs.get((dr, dc), None) != True:
                     self.kb.tell(d_sym)
                     self.kb.tell(~v_sym)
@@ -164,7 +182,7 @@ class GringottsController:
         # Handle sulfur constraints for current cell
         r, c = self.harry_loc
         neighbors = self.get_4_neighbors(r, c)
-        neighbor_traps = [cell_symbol("Trap", nr, nc) for (nr, nc) in neighbors]
+        neighbor_traps = [self.trap_symbols[(nr, nc)] for (nr, nc) in neighbors]
 
         # Remove old sulfur constraint for this cell (keep only newest)
         self.remove_old_sulfur_constraint_for_cell(self.harry_loc)
@@ -189,7 +207,7 @@ class GringottsController:
         self.obs_constraints = newlist
 
     # -------------------------------------------------------------------------
-    # Inference
+    # Inference (Incremental Improvement: short-circuit checks)
     # -------------------------------------------------------------------------
 
     def run_inference(self, affected_cells=None):
@@ -205,53 +223,81 @@ class GringottsController:
 
             # Vault
             if cell not in self.Vault_beliefs:
-                v_sym = cell_symbol("Vault", r, c)
-                cache_key = (cell, "Vault")
-                if cache_key not in self.inference_cache:
-                    self.inference_cache[cache_key] = pl_resolution(self.kb, v_sym)
-                if self.inference_cache[cache_key]:
+                v_sym = self.vault_symbols[(r, c)]
+
+                # If symbol already cached, no need to run pl_resolution
+                if (v_sym.op in self.inference_cache):
+                    cached_val = self.inference_cache[v_sym.op]
+                    if cached_val is True:
+                        self.Vault_beliefs[cell] = True
+                        print(f" - Inference (cached): Vault present at {(r, c)}.")
+                    else:
+                        self.Vault_beliefs[cell] = False
+                        print(f" - Inference (cached): Vault not present at {(r, c)}.")
+                    continue
+
+                # If not in cache, do pl_resolution
+                result = pl_resolution(self.kb, v_sym)
+                self.inference_cache[v_sym.op] = result
+                if result:
                     self.Vault_beliefs[cell] = True
                     print(f" - Inference: Vault present at {(r, c)}.")
                     continue
-                # Check not vault
-                cache_key_neg = (cell, "Vault_neg")
-                if cache_key_neg not in self.inference_cache:
-                    self.inference_cache[cache_key_neg] = pl_resolution(self.kb, ~v_sym)
-                if self.inference_cache[cache_key_neg]:
+                result_neg = pl_resolution(self.kb, ~v_sym)
+                self.inference_cache[(~v_sym).op] = result_neg
+                if result_neg:
                     self.Vault_beliefs[cell] = False
                     print(f" - Inference: Vault not present at {(r, c)}.")
 
             # Dragon
             if cell not in self.Dragon_beliefs:
-                d_sym = cell_symbol("Dragon", r, c)
-                cache_key = (cell, "Dragon")
-                if cache_key not in self.inference_cache:
-                    self.inference_cache[cache_key] = pl_resolution(self.kb, d_sym)
-                if self.inference_cache[cache_key]:
+                d_sym = self.dragon_symbols[(r, c)]
+
+                if (d_sym.op in self.inference_cache):
+                    cached_val = self.inference_cache[d_sym.op]
+                    if cached_val is True:
+                        self.Dragon_beliefs[cell] = True
+                        print(f" - Inference (cached): Dragon present at {(r, c)}.")
+                    else:
+                        self.Dragon_beliefs[cell] = False
+                        print(f" - Inference (cached): Dragon not present at {(r, c)}.")
+                    continue
+
+                result = pl_resolution(self.kb, d_sym)
+                self.inference_cache[d_sym.op] = result
+                if result:
                     self.Dragon_beliefs[cell] = True
                     print(f" - Inference: Dragon present at {(r, c)}.")
                     continue
-                cache_key_neg = (cell, "Dragon_neg")
-                if cache_key_neg not in self.inference_cache:
-                    self.inference_cache[cache_key_neg] = pl_resolution(self.kb, ~d_sym)
-                if self.inference_cache[cache_key_neg]:
+                result_neg = pl_resolution(self.kb, ~d_sym)
+                self.inference_cache[(~d_sym).op] = result_neg
+                if result_neg:
                     self.Dragon_beliefs[cell] = False
                     print(f" - Inference: Dragon not present at {(r, c)}.")
 
             # Trap
             if cell not in self.Trap_beliefs:
-                t_sym = cell_symbol("Trap", r, c)
-                cache_key = (cell, "Trap")
-                if cache_key not in self.inference_cache:
-                    self.inference_cache[cache_key] = pl_resolution(self.kb, t_sym)
-                if self.inference_cache[cache_key]:
+                t_sym = self.trap_symbols[(r, c)]
+
+                if (t_sym.op in self.inference_cache):
+                    cached_val = self.inference_cache[t_sym.op]
+                    if cached_val is True:
+                        self.Trap_beliefs[cell] = True
+                        print(f" - Inference (cached): Trap present at {(r, c)}.")
+                    else:
+                        self.Trap_beliefs[cell] = False
+                        print(f" - Inference (cached): Trap not present at {(r, c)}.")
+                    continue
+
+                result = pl_resolution(self.kb, t_sym)
+                self.inference_cache[t_sym.op] = result
+                if result:
                     self.Trap_beliefs[cell] = True
                     print(f" - Inference: Trap present at {(r, c)}.")
                     continue
-                cache_key_neg = (cell, "Trap_neg")
-                if cache_key_neg not in self.inference_cache:
-                    self.inference_cache[cache_key_neg] = pl_resolution(self.kb, ~t_sym)
-                if self.inference_cache[cache_key_neg]:
+                result_neg = pl_resolution(self.kb, ~t_sym)
+                self.inference_cache[(~t_sym).op] = result_neg
+                if result_neg:
                     self.Trap_beliefs[cell] = False
                     print(f" - Inference: Trap not present at {(r, c)}.")
 
@@ -280,9 +326,6 @@ class GringottsController:
             neighbors = self.get_4_neighbors(*self.harry_loc)
             affected_cells.update(neighbors)
             print(f" - No affected cells from observations. Adding neighbors {neighbors} to affected cells.")
-
-        ### If no affected cells added because of observations, then add to affected all 4 neighbors to harry's position
-
 
         # 3. Run inference
         self.run_inference(affected_cells=affected_cells)
@@ -313,7 +356,7 @@ class GringottsController:
                 action = ("destroy", trap_to_destroy)
                 print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
                 # Mark as safe
-                self.kb.tell(~cell_symbol("Trap", trap_to_destroy[0], trap_to_destroy[1]))
+                self.kb.tell(~self.trap_symbols[trap_to_destroy])
                 self.Trap_beliefs[trap_to_destroy] = False
 
                 self.print_debug_info(label="After Destroying a Trap")
@@ -362,7 +405,7 @@ class GringottsController:
             target = adjacent_vaults_with_traps[0]
             action = ("destroy", target)
             print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
-            self.kb.tell(~cell_symbol("Trap", target[0], target[1]))
+            self.kb.tell(~self.trap_symbols[target])
             self.Trap_beliefs[target] = False
             self.print_debug_info(label="After Destroying trap in adjacent vault")
             print("=============================\n")
@@ -400,7 +443,7 @@ class GringottsController:
                     if trap not in self.visited and self.Trap_beliefs.get(trap, None) is not False:
                         if self.is_adjacent(self.harry_loc, trap):
                             print(f"Action Selected: ('destroy', {trap}) (Destroying fallback sulfur trap)")
-                            self.kb.tell(~cell_symbol("Trap", trap[0], trap[1]))
+                            self.kb.tell(~self.trap_symbols[trap])
                             self.Trap_beliefs[trap] = False
                             self.print_debug_info(label="After Destroying fallback sulfur trap")
                             print("=============================\n")
@@ -432,6 +475,22 @@ class GringottsController:
             print("=============================\n")
             return action
 
+        # ============= INCREMENTAL IMPROVEMENT HERE =============
+        # 12.5. If no probable vault was found, systematically explore any unvisited safe cell
+        # instead of picking a purely random move.
+        safe_exploration_path = self.get_path_to_unvisited_safe_cell()
+        if safe_exploration_path and len(safe_exploration_path) > 1:
+            next_step = safe_exploration_path[1]
+            action = ("move", next_step)
+            print(f"Action Selected: {action} (Exploring a safe unvisited cell)")
+            self.harry_loc = next_step
+            self.visited.add(next_step)
+            self.path_history.append(next_step)
+            self.print_debug_info(label="After Move Action (exploring safe cell)")
+            print("=============================\n")
+            return action
+        # ============= END OF IMPROVEMENT =============
+
         # 13. If no path is found, perform a random move to explore
         random_move = self.get_random_move()
         if random_move:
@@ -454,19 +513,6 @@ class GringottsController:
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
-
-    def print_debug_info(self, label=""):
-        print(f"--- DEBUG INFO {('[%s]' % label) if label else ''} ---")
-        # print("KB clauses:", self.kb.clauses)
-        print("Trap Beliefs:", self.Trap_beliefs)
-        print("Dragon Beliefs:", self.Dragon_beliefs)
-        print("Vault Beliefs:", self.Vault_beliefs)
-        print("Collected Vaults:", self.collected_vaults)
-        print("Observation Constraints:", self.obs_constraints)
-        print("Possible Traps to Destroy:", list(self.possible_traps_to_destroy))
-        print("Visited Cells:", self.visited)
-        print("Path History:", list(self.path_history))
-        print("---------------------------------------\n")
 
     def get_closest_vault(self, definite_vaults):
         """
@@ -639,6 +685,35 @@ class GringottsController:
                     queue.append((nbd, new_path))
         return None
 
+    # ----------------- New Helper Method for the Improvement -----------------
+    def get_path_to_unvisited_safe_cell(self):
+        """
+        Find a BFS path to any unvisited *safe* cell (Trap=False, Dragon=False)
+        If multiple safe unvisited cells exist, return a path to the first we find.
+        """
+        # BFS from harry_loc to find any unvisited, known-safe cell
+        start = self.harry_loc
+        visited_local = set([start])
+        queue = deque([(start, [start])])
+
+        while queue:
+            current, path = queue.popleft()
+            # If this cell is unvisited and safe, and not the start:
+            if current not in self.visited and current != start:
+                # Return the path
+                return path
+            # Otherwise, enqueue neighbors
+            for nbd in self.get_4_neighbors(current[0], current[1]):
+                if nbd not in visited_local:
+                    # Check if definitely safe
+                    if not self.Trap_beliefs.get(nbd, False) and not self.Dragon_beliefs.get(nbd, False):
+                        visited_local.add(nbd)
+                        queue.append((nbd, path + [nbd]))
+
+        # No unvisited safe cells found
+        return None
+    # -------------------------------------------------------------------------
+
     def get_4_neighbors(self, r, c):
         results = []
         if r > 0:
@@ -677,12 +752,12 @@ class GringottsController:
                 r, c = neighbor
                 # Only infer ~Vault and ~Trap if no observations contradict
                 if self.Vault_beliefs.get(neighbor, None) is not True:
-                    self.kb.tell(~cell_symbol("Vault", r, c))
+                    self.kb.tell(~self.vault_symbols[neighbor])
                     if self.Vault_beliefs.get(neighbor, None) is not False:
                         self.Vault_beliefs[neighbor] = False
                         print(f" - Inferred no Vault at {neighbor} based on path history.")
                 if self.Trap_beliefs.get(neighbor, None) is not True and not self.Vault_beliefs.get(neighbor, False):
-                    self.kb.tell(~cell_symbol("Trap", r, c))
+                    self.kb.tell(~self.trap_symbols[neighbor])
                     if self.Trap_beliefs.get(neighbor, None) is not False:
                         self.Trap_beliefs[neighbor] = False
                         print(f" - Inferred no Trap at {neighbor} based on path history.")
@@ -718,3 +793,21 @@ class GringottsController:
 
     def __repr__(self):
         return "<GringottsController with KB-based inference using PropKB>"
+
+    # -------------------------------------------------------------------------
+    # Additional Helper Methods
+    # -------------------------------------------------------------------------
+
+    def print_debug_info(self, label=""):
+        print(f"--- DEBUG INFO {('[%s]' % label) if label else ''} ---")
+        # Uncomment the following lines to enable detailed debugging information
+        # print("KB clauses:", self.kb.clauses)
+        # print("Trap Beliefs:", self.Trap_beliefs)
+        # print("Dragon Beliefs:", self.Dragon_beliefs)
+        # print("Vault Beliefs:", self.Vault_beliefs)
+        # print("Collected Vaults:", self.collected_vaults)
+        # print("Observation Constraints:", self.obs_constraints)
+        # print("Possible Traps to Destroy:", list(self.possible_traps_to_destroy))
+        # print("Visited Cells:", self.visited)
+        # print("Path History:", list(self.path_history))
+        print("---------------------------------------\n")
