@@ -753,6 +753,7 @@ class GringottsController:
     # Additional Helper Methods
     # -------------------------------------------------------------------------
 
+
     def print_debug_info(self, label=""):
         print(f"--- DEBUG INFO {('[%s]' % label) if label else ''} ---")
         # For deeper debugging, uncomment these lines:
