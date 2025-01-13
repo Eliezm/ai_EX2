@@ -141,6 +141,7 @@ class GringottsController:
         print(f"Turn {self.turn_count + 1}: Observations Received: {obs_list}")
 
         sulfur_detected = False
+        sulfur_cells = []
 
         for obs in obs_list:
             obs_kind = obs[0]
@@ -171,32 +172,33 @@ class GringottsController:
 
             elif obs_kind == "sulfur":
                 sulfur_detected = True
+                sulfur_cells.append(self.harry_loc)
                 print(" - Sulfur detected near Harry's location.")
 
             else:
                 # No specific observation; could log or handle differently
                 print(" - Unrecognized observation.")
 
-        # Handle sulfur constraints for current cell
-        r, c = self.harry_loc
-        neighbors = self.get_4_neighbors(r, c)
-        neighbor_traps = [self.trap_symbols[(nr, nc)] for (nr, nc) in neighbors]
-
-        # Remove old sulfur constraint for this cell (keep only newest)
-        self.remove_old_sulfur_constraint_for_cell(self.harry_loc)
-
-        if sulfur_detected:
-            if neighbor_traps:
-                sulfur_clause = " | ".join(str(t) for t in neighbor_traps)
-                self.kb.tell(expr(sulfur_clause))
-                print(f" - Updating KB with sulfur constraint: {sulfur_clause}")
-            self.obs_constraints.append(("SULFUR+", self.harry_loc))
-        else:
-            if neighbor_traps:
-                no_trap_clause = " & ".join(str(~t) for t in neighbor_traps)
+        # Handle sulfur constraints for current cells
+        for cell in sulfur_cells:
+            r, c = cell
+            neighbors = self.get_4_neighbors(r, c)
+            if sulfur_detected:
+                # At least one neighbor has a trap
+                trap_syms = [self.trap_symbols[(nr, nc)] for (nr, nc) in neighbors if
+                             (nr, nc) not in self.Dragon_beliefs or not self.Dragon_beliefs[(nr, nc)]]
+                if trap_syms:
+                    sulfur_clause = " | ".join(str(t) for t in trap_syms)
+                    self.kb.tell(expr(sulfur_clause))
+                    print(f" - Updating KB with sulfur constraint: {sulfur_clause}")
+                self.obs_constraints.append(("SULFUR+", cell))
+            else:
+                # No sulfur detected; no adjacent traps
+                trap_syms = [~self.trap_symbols[(nr, nc)] for (nr, nc) in neighbors]
+                no_trap_clause = " & ".join(str(t) for t in trap_syms)
                 self.kb.tell(expr(no_trap_clause))
                 print(f" - Updating KB with no sulfur constraint: {no_trap_clause}")
-            self.obs_constraints.append(("SULFUR0", self.harry_loc))
+                self.obs_constraints.append(("SULFUR0", cell))
 
         print()
 
@@ -222,10 +224,10 @@ class GringottsController:
             # Vault
             if cell not in self.Vault_beliefs:
                 v_sym = self.vault_symbols[(r, c)]
-                # If symbol is cached, no need to run pl_resolution
-                if (v_sym.op in self.inference_cache):
-                    cached_val = self.inference_cache[v_sym.op]
-                    if cached_val is True:
+                # Check both the symbol and its negation in the cache
+                if (v_sym in self.inference_cache):
+                    cached_val = self.inference_cache[v_sym]
+                    if cached_val:
                         self.Vault_beliefs[cell] = True
                         print(f" - Inference (cached): Vault present at {(r, c)}.")
                     else:
@@ -234,23 +236,24 @@ class GringottsController:
                     continue
                 # If not cached, do pl_resolution
                 result = pl_resolution(self.kb, v_sym)
-                self.inference_cache[v_sym.op] = result
+                self.inference_cache[v_sym] = result
                 if result:
                     self.Vault_beliefs[cell] = True
                     print(f" - Inference: Vault present at {(r, c)}.")
                     continue
                 result_neg = pl_resolution(self.kb, ~v_sym)
-                self.inference_cache[(~v_sym).op] = result_neg
+                self.inference_cache[~v_sym] = result_neg
                 if result_neg:
                     self.Vault_beliefs[cell] = False
                     print(f" - Inference: Vault not present at {(r, c)}.")
 
+            # Repeat similar changes for Dragon and Trap
             # Dragon
             if cell not in self.Dragon_beliefs:
                 d_sym = self.dragon_symbols[(r, c)]
-                if (d_sym.op in self.inference_cache):
-                    cached_val = self.inference_cache[d_sym.op]
-                    if cached_val is True:
+                if (d_sym in self.inference_cache):
+                    cached_val = self.inference_cache[d_sym]
+                    if cached_val:
                         self.Dragon_beliefs[cell] = True
                         print(f" - Inference (cached): Dragon present at {(r, c)}.")
                     else:
@@ -258,13 +261,13 @@ class GringottsController:
                         print(f" - Inference (cached): Dragon not present at {(r, c)}.")
                     continue
                 result = pl_resolution(self.kb, d_sym)
-                self.inference_cache[d_sym.op] = result
+                self.inference_cache[d_sym] = result
                 if result:
                     self.Dragon_beliefs[cell] = True
                     print(f" - Inference: Dragon present at {(r, c)}.")
                     continue
                 result_neg = pl_resolution(self.kb, ~d_sym)
-                self.inference_cache[(~d_sym).op] = result_neg
+                self.inference_cache[~d_sym] = result_neg
                 if result_neg:
                     self.Dragon_beliefs[cell] = False
                     print(f" - Inference: Dragon not present at {(r, c)}.")
@@ -272,9 +275,9 @@ class GringottsController:
             # Trap
             if cell not in self.Trap_beliefs:
                 t_sym = self.trap_symbols[(r, c)]
-                if (t_sym.op in self.inference_cache):
-                    cached_val = self.inference_cache[t_sym.op]
-                    if cached_val is True:
+                if (t_sym in self.inference_cache):
+                    cached_val = self.inference_cache[t_sym]
+                    if cached_val:
                         self.Trap_beliefs[cell] = True
                         print(f" - Inference (cached): Trap present at {(r, c)}.")
                     else:
@@ -282,13 +285,13 @@ class GringottsController:
                         print(f" - Inference (cached): Trap not present at {(r, c)}.")
                     continue
                 result = pl_resolution(self.kb, t_sym)
-                self.inference_cache[t_sym.op] = result
+                self.inference_cache[t_sym] = result
                 if result:
                     self.Trap_beliefs[cell] = True
                     print(f" - Inference: Trap present at {(r, c)}.")
                     continue
                 result_neg = pl_resolution(self.kb, ~t_sym)
-                self.inference_cache[(~t_sym).op] = result_neg
+                self.inference_cache[~t_sym] = result_neg
                 if result_neg:
                     self.Trap_beliefs[cell] = False
                     print(f" - Inference: Trap not present at {(r, c)}.")
@@ -359,14 +362,16 @@ class GringottsController:
                 path_to_trap = self.a_star_path(self.harry_loc, trap_to_destroy)
                 if path_to_trap and len(path_to_trap) > 1:
                     next_step = path_to_trap[1]
-                    action = ("move", next_step)
-                    print(f"Action Selected: {action} (Moving towards trap at {trap_to_destroy})")
-                    self.harry_loc = next_step
-                    self.visited.add(next_step)
-                    self.path_history.append(next_step)
-                    self.print_debug_info(label="After Move Action (towards trap)")
-                    print("=============================\n")
-                    return action
+                    # Validate the move before taking it
+                    if self.is_move_safe(next_step):
+                        action = ("move", next_step)
+                        print(f"Action Selected: {action} (Moving towards trap at {trap_to_destroy})")
+                        self.harry_loc = next_step
+                        self.visited.add(next_step)
+                        self.path_history.append(next_step)
+                        self.print_debug_info(label="After Move Action (towards trap)")
+                        print("=============================\n")
+                        return action
 
         # 7. If we are currently on a Vault, collect it only if not collected yet
         if self.Vault_beliefs.get(self.harry_loc, None) is True:
@@ -420,14 +425,15 @@ class GringottsController:
             path = self.a_star_path(self.harry_loc, target_vault)
             if path and len(path) > 1:
                 next_step = path[1]
-                action = ("move", next_step)
-                print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
-                self.harry_loc = next_step
-                self.visited.add(next_step)
-                self.path_history.append(next_step)
-                self.print_debug_info(label="After Move Action")
-                print("=============================\n")
-                return action
+                if self.is_move_safe(next_step):
+                    action = ("move", next_step)
+                    print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
+                    self.harry_loc = next_step
+                    self.visited.add(next_step)
+                    self.path_history.append(next_step)
+                    self.print_debug_info(label="After Move Action")
+                    print("=============================\n")
+                    return action
 
         # 11. If sulfur is detected, do fallback destruction logic
         if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
@@ -436,51 +442,55 @@ class GringottsController:
                 for trap in possible_traps:
                     if trap not in self.visited and self.Trap_beliefs.get(trap, None) is not False:
                         if self.is_adjacent(self.harry_loc, trap):
-                            print(f"Action Selected: ('destroy', {trap}) (Destroying fallback sulfur trap)")
+                            action = ("destroy", trap)
+                            print(f"Action Selected: {action} (Destroying fallback sulfur trap)")
                             self.kb.tell(~self.trap_symbols[trap])
                             self.Trap_beliefs[trap] = False
                             self.print_debug_info(label="After Destroying fallback sulfur trap")
                             print("=============================\n")
-                            return ("destroy", trap)
+                            return action
                         else:
                             # Move closer to the trap with A* only (no BFS)
                             path_to_trap = self.a_star_path(self.harry_loc, trap)
                             if path_to_trap and len(path_to_trap) > 1:
                                 next_step = path_to_trap[1]
-                                action = ("move", next_step)
-                                print(f"Action Selected: {action} (Moving towards fallback trap at {trap})")
-                                self.harry_loc = next_step
-                                self.visited.add(next_step)
-                                self.path_history.append(next_step)
-                                self.print_debug_info(label="After Move Action (towards fallback trap)")
-                                print("=============================\n")
-                                return action
+                                if self.is_move_safe(next_step):
+                                    action = ("move", next_step)
+                                    print(f"Action Selected: {action} (Moving towards fallback trap at {trap})")
+                                    self.harry_loc = next_step
+                                    self.visited.add(next_step)
+                                    self.path_history.append(next_step)
+                                    self.print_debug_info(label="After Move Action (towards fallback trap)")
+                                    print("=============================\n")
+                                    return action
 
         # 12. If no definite vaults, plan path to the most probable vault (Enhanced heuristic, no BFS fallback)
         path = self.plan_path_to_goal()  # uses only A*, no BFS fallback
         if path and len(path) > 1:
             next_step = path[1]
-            action = ("move", next_step)
-            print(f"Action Selected: {action} (Moving towards most probable vault)")
-            self.harry_loc = next_step
-            self.visited.add(next_step)
-            self.path_history.append(next_step)
-            self.print_debug_info(label="After Move Action (probable vault)")
-            print("=============================\n")
-            return action
+            if self.is_move_safe(next_step):
+                action = ("move", next_step)
+                print(f"Action Selected: {action} (Moving towards most probable vault)")
+                self.harry_loc = next_step
+                self.visited.add(next_step)
+                self.path_history.append(next_step)
+                self.print_debug_info(label="After Move Action (probable vault)")
+                print("=============================\n")
+                return action
 
-        # 12.5. If no probable vault is found, we can try exploring unvisited safe cells with a custom method
+        # 12.5. If no probable vault is found, try exploring unvisited safe cells with a custom method
         explore_path = self.plan_path_to_unvisited_safe()
         if explore_path and len(explore_path) > 1:
             next_step = explore_path[1]
-            action = ("move", next_step)
-            print(f"Action Selected: {action} (Exploring safe unvisited cell via A*)")
-            self.harry_loc = next_step
-            self.visited.add(next_step)
-            self.path_history.append(next_step)
-            self.print_debug_info(label="After Move Action (exploring safe cell)")
-            print("=============================\n")
-            return action
+            if self.is_move_safe(next_step):
+                action = ("move", next_step)
+                print(f"Action Selected: {action} (Exploring safe unvisited cell via A*)")
+                self.harry_loc = next_step
+                self.visited.add(next_step)
+                self.path_history.append(next_step)
+                self.print_debug_info(label="After Move Action (exploring safe cell)")
+                print("=============================\n")
+                return action
 
         # 13. If no path is found, perform a random move to explore
         random_move = self.get_random_move()
@@ -500,6 +510,13 @@ class GringottsController:
         self.print_debug_info(label="After Wait Action")
         print("=============================\n")
         return action
+
+    def is_move_safe(self, cell):
+        """
+        Check if moving to the specified cell is safe (no known dragon or trap).
+        """
+        return (self.Dragon_beliefs.get(cell, False) is False and
+                self.Trap_beliefs.get(cell, False) is False)
 
     # -------------------------------------------------------------------------
     # Helpers
@@ -609,7 +626,7 @@ class GringottsController:
 
     def a_star_path(self, start, goal):
         """
-        Plain A* for path planning. We do not use BFS fallback at all.
+        Enhanced A* for path planning with improved heuristic.
         """
         from heapq import heappush, heappop
         open_set = []
@@ -632,9 +649,14 @@ class GringottsController:
                     continue
                 if neighbor in path:
                     continue
+                # Prioritize paths that are closer to the center and have higher vault probability
                 new_cost = cost + 1
-                new_est = new_cost + self.heuristic(neighbor, goal)
-                heappush(open_set, (new_est, new_cost, neighbor, path + [neighbor]))
+                heuristic_value = self.heuristic(neighbor, goal)
+                # Incorporate vault probability and centrality into the heuristic
+                vault_prob = self.Vault_beliefs.get(neighbor, False)
+                centrality = self.heuristic(neighbor, self.center) / (self.rows + self.cols)
+                combined_est = new_cost + heuristic_value - (0.5 * vault_prob) - (0.3 * centrality)
+                heappush(open_set, (combined_est, new_cost, neighbor, path + [neighbor]))
         return None
 
     def calculate_vault_probabilities(self):
