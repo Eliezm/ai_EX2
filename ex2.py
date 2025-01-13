@@ -79,6 +79,13 @@ class GringottsController:
         # Enhanced inference cache: store symbol => Boolean
         self.inference_cache = {}
 
+        # Mode management
+        self.mode = 'normal'  # 'normal' or 'explore'
+        self.explore_target = None
+        self.explore_path = []
+        self.new_clauses_inferred = 0
+        self.knowledge_threshold = 5  # Define "enough" as 5 new clauses
+
     # -------------------------------------------------------------------------
     # Knowledge-Base Setup
     # -------------------------------------------------------------------------
@@ -228,9 +235,11 @@ class GringottsController:
                     if cached_val is True:
                         self.Vault_beliefs[cell] = True
                         print(f" - Inference (cached): Vault present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     else:
                         self.Vault_beliefs[cell] = False
                         print(f" - Inference (cached): Vault not present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     continue
                 # If not cached, do pl_resolution
                 result = pl_resolution(self.kb, v_sym)
@@ -238,12 +247,14 @@ class GringottsController:
                 if result:
                     self.Vault_beliefs[cell] = True
                     print(f" - Inference: Vault present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
                     continue
                 result_neg = pl_resolution(self.kb, ~v_sym)
                 self.inference_cache[(~v_sym).op] = result_neg
                 if result_neg:
                     self.Vault_beliefs[cell] = False
                     print(f" - Inference: Vault not present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
 
             # Dragon
             if cell not in self.Dragon_beliefs:
@@ -253,21 +264,25 @@ class GringottsController:
                     if cached_val is True:
                         self.Dragon_beliefs[cell] = True
                         print(f" - Inference (cached): Dragon present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     else:
                         self.Dragon_beliefs[cell] = False
                         print(f" - Inference (cached): Dragon not present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     continue
                 result = pl_resolution(self.kb, d_sym)
                 self.inference_cache[d_sym.op] = result
                 if result:
                     self.Dragon_beliefs[cell] = True
                     print(f" - Inference: Dragon present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
                     continue
                 result_neg = pl_resolution(self.kb, ~d_sym)
                 self.inference_cache[(~d_sym).op] = result_neg
                 if result_neg:
                     self.Dragon_beliefs[cell] = False
                     print(f" - Inference: Dragon not present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
 
             # Trap
             if cell not in self.Trap_beliefs:
@@ -277,21 +292,25 @@ class GringottsController:
                     if cached_val is True:
                         self.Trap_beliefs[cell] = True
                         print(f" - Inference (cached): Trap present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     else:
                         self.Trap_beliefs[cell] = False
                         print(f" - Inference (cached): Trap not present at {(r, c)}.")
+                        self.new_clauses_inferred += 1
                     continue
                 result = pl_resolution(self.kb, t_sym)
                 self.inference_cache[t_sym.op] = result
                 if result:
                     self.Trap_beliefs[cell] = True
                     print(f" - Inference: Trap present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
                     continue
                 result_neg = pl_resolution(self.kb, ~t_sym)
                 self.inference_cache[(~t_sym).op] = result_neg
                 if result_neg:
                     self.Trap_beliefs[cell] = False
                     print(f" - Inference: Trap not present at {(r, c)}.")
+                    self.new_clauses_inferred += 1
 
     # -------------------------------------------------------------------------
     # Decide Next Action
@@ -304,6 +323,9 @@ class GringottsController:
         self.turn_count += 1
         print(f"===== Turn {self.turn_count} =====")
         print(f"Current Location: {self.harry_loc}")
+
+        # Reset inference counter for this turn
+        self.new_clauses_inferred = 0
 
         # 1. Update KB with new observations
         self.update_with_observations(observations)
@@ -328,173 +350,184 @@ class GringottsController:
         # 5. Print debugging info
         self.print_debug_info(label="After Observations & Inference")
 
-        # 5.5 If sulfur, gather possible unvisited trap cells
-        if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
-            possible_traps = self.infer_possible_traps()
-            if possible_traps:
-                print(f" - The following cells are suspected as traps: {possible_traps}")
-            for trap_cell in possible_traps:
-                if (trap_cell not in self.visited) and (self.Trap_beliefs.get(trap_cell, None) is not False):
-                    if trap_cell not in self.possible_traps_to_destroy:
-                        self.possible_traps_to_destroy.append(trap_cell)
-                        print("Possible traps list (appended):", self.possible_traps_to_destroy)
+        # 6. Mode-based Action Selection
+        if self.mode == 'normal':
+            # 6.1 If sulfur, gather possible unvisited trap cells
+            if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
+                possible_traps = self.infer_possible_traps()
+                if possible_traps:
+                    print(f" - The following cells are suspected as traps: {possible_traps}")
+                for trap_cell in possible_traps:
+                    if (trap_cell not in self.visited) and (self.Trap_beliefs.get(trap_cell, None) is not False):
+                        if trap_cell not in self.possible_traps_to_destroy:
+                            self.possible_traps_to_destroy.append(trap_cell)
+                            print("Possible traps list (appended):", self.possible_traps_to_destroy)
 
-        # 6. If there's a trap to destroy in the queue, do that first
-        if self.possible_traps_to_destroy:
-            trap_to_destroy = self.possible_traps_to_destroy.popleft()
+            # 6.2 If there's a trap to destroy in the queue, do that first
+            if self.possible_traps_to_destroy:
+                trap_to_destroy = self.possible_traps_to_destroy.popleft()
 
-            # Ensure Harry is adjacent to the trap before destroying
-            if self.is_adjacent(self.harry_loc, trap_to_destroy):
-                action = ("destroy", trap_to_destroy)
-                print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
-                # Mark as safe
-                self.kb.tell(~self.trap_symbols[trap_to_destroy])
-                self.Trap_beliefs[trap_to_destroy] = False
+                # Ensure Harry is adjacent to the trap before destroying
+                if self.is_adjacent(self.harry_loc, trap_to_destroy):
+                    action = ("destroy", trap_to_destroy)
+                    print(f"Action Selected: {action} (Destroying trap at {trap_to_destroy})")
+                    # Mark as safe
+                    self.kb.tell(~self.trap_symbols[trap_to_destroy])
+                    self.Trap_beliefs[trap_to_destroy] = False
 
-                self.print_debug_info(label="After Destroying a Trap")
+                    self.print_debug_info(label="After Destroying a Trap")
+                    print("=============================\n")
+                    return action
+                else:
+                    # Move closer to the trap using A* only
+                    path_to_trap = self.a_star_path(self.harry_loc, trap_to_destroy)
+                    if path_to_trap and len(path_to_trap) > 1:
+                        next_step = path_to_trap[1]
+                        action = ("move", next_step)
+                        print(f"Action Selected: {action} (Moving towards trap at {trap_to_destroy})")
+                        self.harry_loc = next_step
+                        self.visited.add(next_step)
+                        self.path_history.append(next_step)
+                        self.print_debug_info(label="After Move Action (towards trap)")
+                        print("=============================\n")
+                        return action
+
+            # 6.3 If we are currently on a Vault, collect it only if not collected yet
+            if self.Vault_beliefs.get(self.harry_loc, None) is True:
+                # If we have *not* collected this vault yet:
+                if self.harry_loc not in self.collected_vaults:
+                    action = ("collect",)
+                    print(f"Action Selected: {action} (Collecting vault)")
+                    # Mark it as collected so we don't keep re-collecting
+                    self.collected_vaults.add(self.harry_loc)
+                    # Optionally mark it not a vault so we don't keep planning to come back
+                    self.Vault_beliefs[self.harry_loc] = False
+
+                    self.print_debug_info(label="After Collecting Vault")
+                    print("=============================\n")
+                    return action
+                else:
+                    # Already collected this vault => treat it as no longer a vault
+                    self.Vault_beliefs[self.harry_loc] = False
+
+            # 6.4 Check for adjacent vaults that also have a trap
+            adjacent_vaults_with_traps = [
+                cell
+                for cell in self.get_4_neighbors(*self.harry_loc)
+                if self.Vault_beliefs.get(cell, None) is True
+                   and self.Trap_beliefs.get(cell, None) is True
+            ]
+            if adjacent_vaults_with_traps:
+                target = adjacent_vaults_with_traps[0]
+                action = ("destroy", target)
+                print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
+                self.kb.tell(~self.trap_symbols[target])
+                self.Trap_beliefs[target] = False
+                self.print_debug_info(label="After Destroying trap in adjacent vault")
                 print("=============================\n")
                 return action
-            else:
-                # Move closer to the trap using A* only
-                path_to_trap = self.a_star_path(self.harry_loc, trap_to_destroy)
-                if path_to_trap and len(path_to_trap) > 1:
-                    next_step = path_to_trap[1]
+
+            # 6.5 Identify all definite Vaults
+            definite_vaults = []
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.Vault_beliefs.get((r, c), None) is True:
+                        # Only consider if *not* already collected
+                        if (r, c) not in self.collected_vaults:
+                            definite_vaults.append((r, c))
+
+            # 6.6 If any definite vault, plan path (improved: pick nearest by distance)
+            if definite_vaults:
+                # Sort them by simple Manhattan distance from Harry (closest vault first)
+                definite_vaults.sort(key=lambda v: abs(v[0] - self.harry_loc[0]) + abs(v[1] - self.harry_loc[1]))
+                target_vault = definite_vaults[0]
+                path = self.a_star_path(self.harry_loc, target_vault)
+                if path and len(path) > 1:
+                    next_step = path[1]
                     action = ("move", next_step)
-                    print(f"Action Selected: {action} (Moving towards trap at {trap_to_destroy})")
+                    print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
                     self.harry_loc = next_step
                     self.visited.add(next_step)
                     self.path_history.append(next_step)
-                    self.print_debug_info(label="After Move Action (towards trap)")
+                    self.print_debug_info(label="After Move Action")
                     print("=============================\n")
                     return action
 
-        # 7. If we are currently on a Vault, collect it only if not collected yet
-        if self.Vault_beliefs.get(self.harry_loc, None) is True:
-            # If we have *not* collected this vault yet:
-            if self.harry_loc not in self.collected_vaults:
-                action = ("collect",)
-                print(f"Action Selected: {action} (Collecting vault)")
-                # Mark it as collected so we don't keep re-collecting
-                self.collected_vaults.add(self.harry_loc)
-                # Optionally mark it not a vault so we don't keep planning to come back
-                self.Vault_beliefs[self.harry_loc] = False
+            # 6.7 If no definite vaults, switch to 'explore' mode
+            if self.mode == 'normal':
+                self.mode = 'explore'
+                print(" - Switching to 'explore' mode.")
+                # Proceed to explore mode actions below
 
-                self.print_debug_info(label="After Collecting Vault")
-                print("=============================\n")
-                return action
-            else:
-                # Already collected this vault => treat it as no longer a vault
-                self.Vault_beliefs[self.harry_loc] = False
+        # Explore Mode Actions
+        if self.mode == 'explore':
+            # 6.8 If no current explore target, choose one
+            if self.explore_target is None:
+                unknown_cells = [
+                    cell for cell in [(r, c) for r in range(self.rows) for c in range(self.cols)]
+                    if cell not in self.visited
+                    and self.Vault_beliefs.get(cell, None) is None
+                    and self.Trap_beliefs.get(cell, None) is None
+                    and self.Dragon_beliefs.get(cell, None) is None
+                ]
+                if not unknown_cells:
+                    print(" - No unknown cells to explore. Remaining in 'normal' mode.")
+                    self.mode = 'normal'
+                else:
+                    self.explore_target = random.choice(unknown_cells)
+                    path_to_target = self.a_star_path(self.harry_loc, self.explore_target)
+                    if path_to_target:
+                        self.explore_path = path_to_target[1:]  # Exclude current location
+                        print(f" - Chosen new exploration target: {self.explore_target}")
+                        print(f" - Planned path to explore target: {self.explore_path}")
+                    else:
+                        # If no path found, remove the target and try another
+                        print(f" - No path found to {self.explore_target}. Choosing another target.")
+                        self.explore_target = None
+                        return self.get_next_action([])  # Recurse without observations
 
-        # 8. Check for adjacent vaults that also have a trap
-        adjacent_vaults_with_traps = [
-            cell
-            for cell in self.get_4_neighbors(*self.harry_loc)
-            if self.Vault_beliefs.get(cell, None) is True
-               and self.Trap_beliefs.get(cell, None) is True
-        ]
-        if adjacent_vaults_with_traps:
-            target = adjacent_vaults_with_traps[0]
-            action = ("destroy", target)
-            print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
-            self.kb.tell(~self.trap_symbols[target])
-            self.Trap_beliefs[target] = False
-            self.print_debug_info(label="After Destroying trap in adjacent vault")
-            print("=============================\n")
-            return action
-
-        # 9. Identify all definite Vaults
-        definite_vaults = []
-        for r in range(self.rows):
-            for c in range(self.cols):
-                if self.Vault_beliefs.get((r, c), None) is True:
-                    # Only consider if *not* already collected
-                    if (r, c) not in self.collected_vaults:
-                        definite_vaults.append((r, c))
-
-        # 10. If any definite vault, plan path (improved: pick nearest by distance)
-        if definite_vaults:
-            # Sort them by simple Manhattan distance from Harry (closest vault first)
-            definite_vaults.sort(key=lambda v: abs(v[0] - self.harry_loc[0]) + abs(v[1] - self.harry_loc[1]))
-            target_vault = definite_vaults[0]
-            path = self.a_star_path(self.harry_loc, target_vault)
-            if path and len(path) > 1:
-                next_step = path[1]
+            # 6.9 Move along the explore_path
+            if self.explore_path:
+                next_step = self.explore_path.pop(0)
                 action = ("move", next_step)
-                print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
+                print(f"Action Selected: {action} (Exploring towards {self.explore_target})")
                 self.harry_loc = next_step
                 self.visited.add(next_step)
                 self.path_history.append(next_step)
-                self.print_debug_info(label="After Move Action")
+                self.run_inference(affected_cells=[next_step])
+                self.print_debug_info(label="After Move Action (exploring)")
+
+                # Check if enough knowledge is inferred
+                if self.new_clauses_inferred >= self.knowledge_threshold:
+                    print(f" - Gained enough knowledge ({self.new_clauses_inferred} clauses). Switching to 'normal' mode.")
+                    self.mode = 'normal'
+                    self.explore_target = None
+                    self.explore_path = []
+                elif not self.explore_path:
+                    print(f" - Reached exploration target {self.explore_target}. Switching to 'normal' mode.")
+                    self.mode = 'normal'
+                    self.explore_target = None
                 print("=============================\n")
                 return action
+            else:
+                # If no path is left, switch back to 'normal' mode
+                print(" - Exploration path is empty. Switching to 'normal' mode.")
+                self.mode = 'normal'
+                self.explore_target = None
 
-        # 11. If sulfur is detected, do fallback destruction logic
-        if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
-            possible_traps = self.infer_possible_traps()
-            if possible_traps:
-                for trap in possible_traps:
-                    if trap not in self.visited and self.Trap_beliefs.get(trap, None) is not False:
-                        if self.is_adjacent(self.harry_loc, trap):
-                            print(f"Action Selected: ('destroy', {trap}) (Destroying fallback sulfur trap)")
-                            self.kb.tell(~self.trap_symbols[trap])
-                            self.Trap_beliefs[trap] = False
-                            self.print_debug_info(label="After Destroying fallback sulfur trap")
-                            print("=============================\n")
-                            return ("destroy", trap)
-                        else:
-                            # Move closer to the trap with A* only (no BFS)
-                            path_to_trap = self.a_star_path(self.harry_loc, trap)
-                            if path_to_trap and len(path_to_trap) > 1:
-                                next_step = path_to_trap[1]
-                                action = ("move", next_step)
-                                print(f"Action Selected: {action} (Moving towards fallback trap at {trap})")
-                                self.harry_loc = next_step
-                                self.visited.add(next_step)
-                                self.path_history.append(next_step)
-                                self.print_debug_info(label="After Move Action (towards fallback trap)")
-                                print("=============================\n")
-                                return action
-
-        # 12. If no definite vaults, plan path to the most probable vault (Enhanced heuristic, no BFS fallback)
-        path = self.plan_path_to_goal()  # uses only A*, no BFS fallback
-        if path and len(path) > 1:
-            next_step = path[1]
-            action = ("move", next_step)
-            print(f"Action Selected: {action} (Moving towards most probable vault)")
-            self.harry_loc = next_step
-            self.visited.add(next_step)
-            self.path_history.append(next_step)
-            self.print_debug_info(label="After Move Action (probable vault)")
-            print("=============================\n")
-            return action
-
-        # 12.5. If no probable vault is found, we can try exploring unvisited safe cells with a custom method
-        explore_path = self.plan_path_to_unvisited_safe()
-        if explore_path and len(explore_path) > 1:
-            next_step = explore_path[1]
-            action = ("move", next_step)
-            print(f"Action Selected: {action} (Exploring safe unvisited cell via A*)")
-            self.harry_loc = next_step
-            self.visited.add(next_step)
-            self.path_history.append(next_step)
-            self.print_debug_info(label="After Move Action (exploring safe cell)")
-            print("=============================\n")
-            return action
-
-        # 13. If no path is found, perform a random move to explore
-        random_move = self.get_random_move()
-        if random_move:
-            action = ("move", random_move)
-            print(f"Action Selected: {action} (Performing random move to explore)")
-            self.harry_loc = random_move
-            self.visited.add(random_move)
-            self.path_history.append(random_move)
+        # 7. If no action has been selected yet, perform random exploration
+        # (This should rarely happen)
+        action = ("move", self.get_random_move())
+        if action[1]:
+            print(f"Action Selected: {action} (Random exploration move)")
+            self.harry_loc = action[1]
+            self.visited.add(action[1])
+            self.path_history.append(action[1])
             self.print_debug_info(label="After Random Move Action")
             print("=============================\n")
             return action
 
-        # 14. Otherwise, wait (should rarely happen)
+        # 8. Otherwise, wait (should rarely happen)
         action = ("wait",)
         print(f"Action Selected: {action} (No viable action found, waiting)")
         self.print_debug_info(label="After Wait Action")
@@ -732,12 +765,14 @@ class GringottsController:
                     if self.Vault_beliefs.get(neighbor, None) is not False:
                         self.Vault_beliefs[neighbor] = False
                         print(f" - Inferred no Vault at {neighbor} based on path history.")
+                        self.new_clauses_inferred += 1
                 if (self.Trap_beliefs.get(neighbor, None) is not True
                         and not self.Vault_beliefs.get(neighbor, False)):
                     self.kb.tell(~self.trap_symbols[neighbor])
                     if self.Trap_beliefs.get(neighbor, None) is not False:
                         self.Trap_beliefs[neighbor] = False
                         print(f" - Inferred no Trap at {neighbor} based on path history.")
+                        self.new_clauses_inferred += 1
 
     def is_adjacent(self, cell1, cell2):
         """
@@ -767,3 +802,6 @@ class GringottsController:
         # print("Visited Cells:", self.visited)
         # print("Path History:", list(self.path_history))
         print("---------------------------------------\n")
+
+
+# The rest of the code (checker.py, utils.py, inputs.py) remains unchanged

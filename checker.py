@@ -5,6 +5,7 @@ import inputs
 
 CODES_NEW = {'passage': 0, 'dragon': 1, 'vault': 2, 'trap': 3, 'hollow_vault': 4, 'vault_trap': 5, 'dragon_trap': 6,
              'hollow_trap_vault': 7}
+
 INVERSE_CODES_NEW = dict([(j, i) for i, j in CODES_NEW.items()])
 ACTION_TIMEOUT = 5
 CONSTRUCTOR_TIMEOUT = 60
