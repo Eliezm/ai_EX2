@@ -62,6 +62,10 @@ class GringottsController:
         self.Trap_beliefs[(r0, c0)] = False
         self.Dragon_beliefs[(r0, c0)] = False
 
+        # Initialize the goal queue to manage multiple vault targets
+        self.goal_queue = deque()
+        self.goal_queue_set = set()  # To prevent duplicate additions
+
         print("----- Initialization -----")
         print("Trap Beliefs:", self.Trap_beliefs)
         print("Dragon Beliefs:", self.Dragon_beliefs)
@@ -79,9 +83,6 @@ class GringottsController:
 
         # Enhanced inference cache: store symbol => Boolean
         self.inference_cache = {}
-
-        # Goal queue to manage multiple vault targets
-        self.goal_queue = deque()
 
     # -------------------------------------------------------------------------
     # Knowledge-Base Setup
@@ -160,8 +161,9 @@ class GringottsController:
                     self.Dragon_beliefs[(vr, vc)] = False
                     print(f" - Vault detected at {(vr, vc)}. Updated beliefs (Vault=True, Dragon=False).")
                     # Add to goal queue if not already collected
-                    if (vr, vc) not in self.collected_vaults and (vr, vc) not in self.goal_queue:
+                    if (vr, vc) not in self.collected_vaults and (vr, vc) not in self.goal_queue_set:
                         self.goal_queue.appendleft((vr, vc))  # High priority
+                        self.goal_queue_set.add((vr, vc))
                         print(f"   > Added {(vr, vc)} to goal queue.")
 
             elif obs_kind == "dragon":
@@ -194,7 +196,7 @@ class GringottsController:
             if sulfur_detected:
                 # At least one neighbor has a trap: (Trap1 ∨ Trap2 ∨ ...)
                 trap_syms = [self.trap_symbols[(nr, nc)] for (nr, nc) in neighbors if
-                             (nr, nc) not in self.Dragon_beliefs or not self.Dragon_beliefs[(nr, nc)]]
+                             (nr, nc) not in self.Dragon_beliefs or not self.Dragon_beliefs.get((nr, nc), False)]
                 if trap_syms:
                     sulfur_clause = " | ".join(str(t) for t in trap_syms)
                     self.kb.tell(expr(sulfur_clause))
@@ -252,8 +254,9 @@ class GringottsController:
                     self.Vault_beliefs[cell] = True
                     print(f" - Inference: Vault present at {(r, c)}.")
                     # Add to goal queue if not already collected
-                    if (r, c) not in self.collected_vaults and (r, c) not in self.goal_queue:
+                    if (r, c) not in self.collected_vaults and (r, c) not in self.goal_queue_set:
                         self.goal_queue.appendleft((r, c))  # High priority
+                        self.goal_queue_set.add((r, c))
                         print(f"   > Added {(r, c)} to goal queue.")
                     continue
                 # Check if Vault is not present
@@ -372,6 +375,7 @@ class GringottsController:
                 # Update KB to mark the trap as destroyed
                 self.kb.tell(~self.trap_symbols[trap_to_destroy])
                 self.Trap_beliefs[trap_to_destroy] = False
+                self.visited.add(trap_to_destroy)  # Assuming after destroying, it's safe
 
                 self.print_debug_info(label="After Destroying a Trap")
                 print("=============================\n")
@@ -423,6 +427,7 @@ class GringottsController:
             # Update KB to mark the trap as destroyed
             self.kb.tell(~self.trap_symbols[target])
             self.Trap_beliefs[target] = False
+            self.visited.add(target)  # Assuming after destroying, it's safe
 
             self.print_debug_info(label="After Destroying trap in adjacent vault")
             print("=============================\n")
@@ -440,8 +445,9 @@ class GringottsController:
             definite_vaults.sort(key=lambda v: abs(v[0] - self.harry_loc[0]) + abs(v[1] - self.harry_loc[1]))
             target_vault = definite_vaults[0]
             # Add to goal queue if not already present
-            if target_vault not in self.goal_queue:
+            if target_vault not in self.goal_queue_set:
                 self.goal_queue.appendleft(target_vault)  # High priority
+                self.goal_queue_set.add(target_vault)
                 print(f"   > Added {target_vault} to goal queue.")
 
         # 11. If sulfur is detected, execute fallback logic to handle possible traps
@@ -455,6 +461,7 @@ class GringottsController:
                             print(f"Action Selected: {action} (Destroying fallback sulfur trap)")
                             self.kb.tell(~self.trap_symbols[trap])
                             self.Trap_beliefs[trap] = False
+                            self.visited.add(trap)
                             self.print_debug_info(label="After Destroying fallback sulfur trap")
                             print("=============================\n")
                             return action
@@ -476,6 +483,7 @@ class GringottsController:
         # 12. Plan path to the most probable vault using enhanced heuristics
         if self.goal_queue:
             target_vault = self.goal_queue.popleft()
+            self.goal_queue_set.discard(target_vault)
             path = self.a_star_path(self.harry_loc, target_vault)
             if path and len(path) > 1:
                 next_step = path[1]
@@ -498,12 +506,14 @@ class GringottsController:
             # Sort probable vaults by probability descending and distance ascending
             probable_vaults.sort(key=lambda x: (-x[1], abs(x[0][0] - self.harry_loc[0]) + abs(x[0][1] - self.harry_loc[1])))
             target_vault = probable_vaults[0][0]
-            if target_vault not in self.goal_queue:
+            if target_vault not in self.goal_queue_set:
                 self.goal_queue.append(target_vault)  # Lower priority
+                self.goal_queue_set.add(target_vault)
                 print(f"   > Added {target_vault} to goal queue as probable vault.")
 
         if self.goal_queue:
             target_vault = self.goal_queue.popleft()
+            self.goal_queue_set.discard(target_vault)
             path = self.a_star_path(self.harry_loc, target_vault)
             if path and len(path) > 1:
                 next_step = path[1]
@@ -582,6 +592,7 @@ class GringottsController:
         if not self.goal_queue:
             return None
         target_vault = self.goal_queue.popleft()
+        self.goal_queue_set.discard(target_vault)
         path = self.a_star_path(self.harry_loc, target_vault)
         if path:
             print(f" - Planned path to goal {target_vault} with enhanced heuristic: {path}")
@@ -696,8 +707,6 @@ class GringottsController:
                         probabilities[(r, c)] = 0.0
         return probabilities
 
-    # Removed duplicate 'plan_path_to_unvisited_safe'
-
     # -------------------------------------------------------------------------
     # Additional Helper Methods
     # -------------------------------------------------------------------------
@@ -743,17 +752,23 @@ class GringottsController:
                 # Only infer ~Vault and ~Trap if no observations contradict
                 if self.Vault_beliefs.get(neighbor, None) is not True:
                     if (r, c) not in self.visited:
-                        self.kb.tell(~self.vault_symbols[neighbor])
-                        if self.Vault_beliefs.get(neighbor, None) is not False:
-                            self.Vault_beliefs[neighbor] = False
-                            print(f" - Inferred no Vault at {neighbor} based on path history.")
+                        # To prevent over-aggressive inference, check if it's safe to infer
+                        # Here, we could use multiple inferences or confidence levels
+                        # For simplicity, we will skip inferring ~Vault and ~Trap
+                        pass
+                        # Example:
+                        # self.kb.tell(~self.vault_symbols[neighbor])
+                        # self.Vault_beliefs[neighbor] = False
+                        # print(f" - Inferred no Vault at {neighbor} based on path history.")
                 if (self.Trap_beliefs.get(neighbor, None) is not True
                         and not self.Vault_beliefs.get(neighbor, False)):
                     if (r, c) not in self.visited:
-                        self.kb.tell(~self.trap_symbols[neighbor])
-                        if self.Trap_beliefs.get(neighbor, None) is not False:
-                            self.Trap_beliefs[neighbor] = False
-                            print(f" - Inferred no Trap at {neighbor} based on path history.")
+                        # Similarly, cautiously avoid inferring ~Trap
+                        pass
+                        # Example:
+                        # self.kb.tell(~self.trap_symbols[neighbor])
+                        # self.Trap_beliefs[neighbor] = False
+                        # print(f" - Inferred no Trap at {neighbor} based on path history.")
 
     def is_adjacent(self, cell1, cell2):
         """
@@ -790,4 +805,3 @@ class GringottsController:
 
     def __repr__(self):
         return "<GringottsController with KB-based inference using PropKB>"
-
