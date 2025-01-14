@@ -154,17 +154,25 @@ class GringottsController:
                 (vr, vc) = obs[1]
                 v_sym = self.vault_symbols.get((vr, vc))
                 d_sym = self.dragon_symbols.get((vr, vc))
-                if self.Vault_beliefs.get((vr, vc), None) is not True:
-                    self.kb.tell(v_sym)
-                    self.kb.tell(~d_sym)
-                    self.Vault_beliefs[(vr, vc)] = True
-                    self.Dragon_beliefs[(vr, vc)] = False
-                    print(f" - Vault detected at {(vr, vc)}. Updated beliefs (Vault=True, Dragon=False).")
-                    # Add to goal queue if not already collected
-                    if (vr, vc) not in self.collected_vaults and (vr, vc) not in self.goal_queue_set:
-                        self.goal_queue.appendleft((vr, vc))  # High priority
-                        self.goal_queue_set.add((vr, vc))
-                        print(f"   > Added {(vr, vc)} to goal queue.")
+                if (vr, vc) not in self.collected_vaults:
+                    if self.Vault_beliefs.get((vr, vc), None) is not True:
+                        self.kb.tell(v_sym)
+                        self.kb.tell(~d_sym)
+                        self.Vault_beliefs[(vr, vc)] = True
+                        self.Dragon_beliefs[(vr, vc)] = False
+                        print(f" - Vault detected at {(vr, vc)}. Updated beliefs (Vault=True, Dragon=False).")
+                        # Add to goal queue if not already collected
+                        if (vr, vc) not in self.collected_vaults and (vr, vc) not in self.goal_queue_set:
+                            self.goal_queue.appendleft((vr, vc))  # High priority
+                            self.goal_queue_set.add((vr, vc))
+                            print(f"   > Added {(vr, vc)} to goal queue.")
+                else:
+                    # Vault already collected; ensure 'Vault_Beliefs' is False
+                    if self.Vault_beliefs.get((vr, vc), None) is not False:
+                        self.kb.tell(~self.vault_symbols[(vr, vc)])
+                        self.Vault_beliefs[(vr, vc)] = False
+                        self.Dragon_beliefs[(vr, vc)] = False
+                        print(f" - Vault at {(vr, vc)} already collected. Updated beliefs (Vault=False, Dragon=False).")
 
             elif obs_kind == "dragon":
                 (dr, dc) = obs[1]
@@ -251,13 +259,14 @@ class GringottsController:
                 result = pl_resolution(self.kb, v_sym)
                 self.inference_cache[v_sym] = result
                 if result:
-                    self.Vault_beliefs[cell] = True
-                    print(f" - Inference: Vault present at {(r, c)}.")
-                    # Add to goal queue if not already collected
-                    if (r, c) not in self.collected_vaults and (r, c) not in self.goal_queue_set:
-                        self.goal_queue.appendleft((r, c))  # High priority
-                        self.goal_queue_set.add((r, c))
-                        print(f"   > Added {(r, c)} to goal queue.")
+                    if cell not in self.collected_vaults:
+                        self.Vault_beliefs[cell] = True
+                        print(f" - Inference: Vault present at {(r, c)}.")
+                        # Add to goal queue if not already collected
+                        if (r, c) not in self.collected_vaults and (r, c) not in self.goal_queue_set:
+                            self.goal_queue.appendleft((r, c))  # High priority
+                            self.goal_queue_set.add((r, c))
+                            print(f"   > Added {(r, c)} to goal queue.")
                     continue
                 # Check if Vault is not present
                 result_neg = pl_resolution(self.kb, ~v_sym)
@@ -353,7 +362,62 @@ class GringottsController:
         # 5. Print debugging info
         self.print_debug_info(label="After Observations & Inference")
 
-        # 6. If sulfur is detected, identify possible traps
+        # 6. If on a vault, collect it
+        if self.Vault_beliefs.get(self.harry_loc, False):
+            if self.harry_loc not in self.collected_vaults:
+                action = ("collect",)
+                print(f"Action Selected: {action} (Collecting vault)")
+                # Mark the vault as collected
+                self.collected_vaults.add(self.harry_loc)
+                # Update KB to reflect that the vault has been collected
+                self.kb.tell(~self.vault_symbols[self.harry_loc])
+                self.Vault_beliefs[self.harry_loc] = False
+
+                self.print_debug_info(label="After Collecting Vault")
+                print("=============================\n")
+                return action
+            else:
+                # Already collected this vault; no action needed
+                self.Vault_beliefs[self.harry_loc] = False
+
+        # 7. Check for adjacent vaults that also have traps and prioritize destroying traps
+        adjacent_vaults_with_traps = [
+            cell
+            for cell in self.get_4_neighbors(*self.harry_loc)
+            if self.Vault_beliefs.get(cell, None) is True
+               and self.Trap_beliefs.get(cell, None) is True
+        ]
+        if adjacent_vaults_with_traps:
+            target = adjacent_vaults_with_traps[0]
+            action = ("destroy", target)
+            print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
+            # Update KB to mark the trap as destroyed
+            self.kb.tell(~self.trap_symbols[target])
+            self.Trap_beliefs[target] = False
+            self.visited.add(target)  # Assuming after destroying, it's safe
+
+            self.print_debug_info(label="After Destroying trap in adjacent vault")
+            print("=============================\n")
+            return action
+
+        # 8. Identify all definite Vaults and plan path to the nearest one
+        definite_vaults = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
+                    definite_vaults.append((r, c))
+
+        if definite_vaults:
+            # Sort definite vaults by Manhattan distance from Harry's current location
+            definite_vaults.sort(key=lambda v: abs(v[0] - self.harry_loc[0]) + abs(v[1] - self.harry_loc[1]))
+            target_vault = definite_vaults[0]
+            # Add to goal queue if not already present
+            if target_vault not in self.goal_queue_set:
+                self.goal_queue.appendleft(target_vault)  # High priority
+                self.goal_queue_set.add(target_vault)
+                print(f"   > Added {target_vault} to goal queue.")
+
+        # 9. If sulfur is detected, identify possible traps and destroy them
         if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
             possible_traps = self.infer_possible_traps()
             if possible_traps:
@@ -364,7 +428,7 @@ class GringottsController:
                         self.possible_traps_to_destroy.append(trap_cell)
                         print("Possible traps list (appended):", list(self.possible_traps_to_destroy))
 
-        # 7. Prioritize destroying known or suspected traps
+        # 10. Prioritize destroying known or suspected traps
         if self.possible_traps_to_destroy:
             trap_to_destroy = self.possible_traps_to_destroy.popleft()
 
@@ -395,109 +459,7 @@ class GringottsController:
                         print("=============================\n")
                         return action
 
-        # 8. If currently on a Vault, collect it
-        if self.Vault_beliefs.get(self.harry_loc, None) is True:
-            if self.harry_loc not in self.collected_vaults:
-                action = ("collect",)
-                print(f"Action Selected: {action} (Collecting vault)")
-                # Mark the vault as collected
-                self.collected_vaults.add(self.harry_loc)
-                # Update KB to reflect that the vault has been collected
-                self.kb.tell(~self.vault_symbols[self.harry_loc])
-                self.Vault_beliefs[self.harry_loc] = False
-
-                self.print_debug_info(label="After Collecting Vault")
-                print("=============================\n")
-                return action
-            else:
-                # Already collected this vault; no action needed
-                self.Vault_beliefs[self.harry_loc] = False
-
-        # 9. Check for adjacent vaults that also have traps and prioritize destroying traps
-        adjacent_vaults_with_traps = [
-            cell
-            for cell in self.get_4_neighbors(*self.harry_loc)
-            if self.Vault_beliefs.get(cell, None) is True
-               and self.Trap_beliefs.get(cell, None) is True
-        ]
-        if adjacent_vaults_with_traps:
-            target = adjacent_vaults_with_traps[0]
-            action = ("destroy", target)
-            print(f"Action Selected: {action} (Destroying trap in adjacent vault at {target})")
-            # Update KB to mark the trap as destroyed
-            self.kb.tell(~self.trap_symbols[target])
-            self.Trap_beliefs[target] = False
-            self.visited.add(target)  # Assuming after destroying, it's safe
-
-            self.print_debug_info(label="After Destroying trap in adjacent vault")
-            print("=============================\n")
-            return action
-
-        # 10. Identify all definite Vaults and plan path to the nearest one
-        definite_vaults = []
-        for r in range(self.rows):
-            for c in range(self.cols):
-                if self.Vault_beliefs.get((r, c), None) is True and (r, c) not in self.collected_vaults:
-                    definite_vaults.append((r, c))
-
-        if definite_vaults:
-            # Sort definite vaults by Manhattan distance from Harry's current location
-            definite_vaults.sort(key=lambda v: abs(v[0] - self.harry_loc[0]) + abs(v[1] - self.harry_loc[1]))
-            target_vault = definite_vaults[0]
-            # Add to goal queue if not already present
-            if target_vault not in self.goal_queue_set:
-                self.goal_queue.appendleft(target_vault)  # High priority
-                self.goal_queue_set.add(target_vault)
-                print(f"   > Added {target_vault} to goal queue.")
-
-        # 11. If sulfur is detected, execute fallback logic to handle possible traps
-        if any(constraint[0] == "SULFUR+" for constraint in self.obs_constraints):
-            possible_traps = self.infer_possible_traps()
-            if possible_traps:
-                for trap in possible_traps:
-                    if trap not in self.visited and self.Trap_beliefs.get(trap, None) is not False:
-                        if self.is_adjacent(self.harry_loc, trap):
-                            action = ("destroy", trap)
-                            print(f"Action Selected: {action} (Destroying fallback sulfur trap)")
-                            self.kb.tell(~self.trap_symbols[trap])
-                            self.Trap_beliefs[trap] = False
-                            self.visited.add(trap)
-                            self.print_debug_info(label="After Destroying fallback sulfur trap")
-                            print("=============================\n")
-                            return action
-                        else:
-                            # Move closer to the trap with A* path planning
-                            path_to_trap = self.a_star_path(self.harry_loc, trap)
-                            if path_to_trap and len(path_to_trap) > 1:
-                                next_step = path_to_trap[1]
-                                if self.is_move_safe(next_step):
-                                    action = ("move", next_step)
-                                    print(f"Action Selected: {action} (Moving towards fallback trap at {trap})")
-                                    self.harry_loc = next_step
-                                    self.visited.add(next_step)
-                                    self.path_history.append(next_step)
-                                    self.print_debug_info(label="After Move Action (towards fallback trap)")
-                                    print("=============================\n")
-                                    return action
-
-        # 12. Plan path to the most probable vault using enhanced heuristics
-        if self.goal_queue:
-            target_vault = self.goal_queue.popleft()
-            self.goal_queue_set.discard(target_vault)
-            path = self.a_star_path(self.harry_loc, target_vault)
-            if path and len(path) > 1:
-                next_step = path[1]
-                if self.is_move_safe(next_step):
-                    action = ("move", next_step)
-                    print(f"Action Selected: {action} (Moving towards definite vault at {target_vault})")
-                    self.harry_loc = next_step
-                    self.visited.add(next_step)
-                    self.path_history.append(next_step)
-                    self.print_debug_info(label="After Move Action (definite vault)")
-                    print("=============================\n")
-                    return action
-
-        # 13. If no definite goals, prioritize probable vaults
+        # 11. Plan path to the most probable vault using enhanced heuristics
         probable_vaults = [
             (cell, prob) for cell, prob in self.calculate_vault_probabilities().items()
             if prob > 0 and self.Vault_beliefs.get(cell, None) is not True and cell not in self.collected_vaults
@@ -506,6 +468,7 @@ class GringottsController:
             # Sort probable vaults by probability descending and distance ascending
             probable_vaults.sort(key=lambda x: (-x[1], abs(x[0][0] - self.harry_loc[0]) + abs(x[0][1] - self.harry_loc[1])))
             target_vault = probable_vaults[0][0]
+            # Add to goal queue if not already present
             if target_vault not in self.goal_queue_set:
                 self.goal_queue.append(target_vault)  # Lower priority
                 self.goal_queue_set.add(target_vault)
@@ -519,15 +482,15 @@ class GringottsController:
                 next_step = path[1]
                 if self.is_move_safe(next_step):
                     action = ("move", next_step)
-                    print(f"Action Selected: {action} (Moving towards probable vault at {target_vault})")
+                    print(f"Action Selected: {action} (Moving towards definite/probable vault at {target_vault})")
                     self.harry_loc = next_step
                     self.visited.add(next_step)
                     self.path_history.append(next_step)
-                    self.print_debug_info(label="After Move Action (probable vault)")
+                    self.print_debug_info(label="After Move Action (definite/probable vault)")
                     print("=============================\n")
                     return action
 
-        # 14. If no goals, explore unvisited safe cells
+        # 12. If no definite or probable vaults, explore unvisited safe cells
         path = self.plan_path_to_unvisited_safe()
         if path and len(path) > 1:
             next_step = path[1]
@@ -541,7 +504,7 @@ class GringottsController:
                 print("=============================\n")
                 return action
 
-        # 15. If no path is found, perform a random move to explore
+        # 13. If no path is found, perform a random move to explore
         random_move = self.get_random_move()
         if random_move:
             action = ("move", random_move)
@@ -553,7 +516,7 @@ class GringottsController:
             print("=============================\n")
             return action
 
-        # 16. Otherwise, wait (should rarely happen)
+        # 14. Otherwise, wait (should rarely happen)
         action = ("wait",)
         print(f"Action Selected: {action} (No viable action found, waiting)")
         self.print_debug_info(label="After Wait Action")
@@ -581,23 +544,9 @@ class GringottsController:
             if constraint == "SULFUR+":
                 neighbors = self.get_4_neighbors(cell[0], cell[1])
                 for nb in neighbors:
-                    if self.Trap_beliefs.get(nb, None) is not False:
+                    if self.Trap_beliefs.get(nb, None) is not False and nb != self.harry_loc:
                         possible_traps.add(nb)
         return list(possible_traps)
-
-    def plan_path_to_goal(self):
-        """
-        Plan a path to a definite vault or a probable vault using A* with enhanced heuristics.
-        """
-        if not self.goal_queue:
-            return None
-        target_vault = self.goal_queue.popleft()
-        self.goal_queue_set.discard(target_vault)
-        path = self.a_star_path(self.harry_loc, target_vault)
-        if path:
-            print(f" - Planned path to goal {target_vault} with enhanced heuristic: {path}")
-            return path
-        return None
 
     def plan_path_to_unvisited_safe(self):
         """
@@ -649,7 +598,7 @@ class GringottsController:
                 new_cost = cost + 1
                 heuristic_value = self.heuristic(neighbor, goal)
                 # Incorporate vault probability and centrality into the heuristic
-                vault_prob = self.Vault_beliefs.get(neighbor, False)
+                vault_prob = self.vault_probability(neighbor)
                 centrality = self.heuristic(neighbor, self.center) / (self.rows + self.cols)
                 # Adjust combined_est based on heuristic factors
                 # Positive vault_prob reduces the heuristic (higher priority)
@@ -707,6 +656,12 @@ class GringottsController:
                         probabilities[(r, c)] = 0.0
         return probabilities
 
+    def vault_probability(self, cell):
+        """
+        Get the probability of a vault being in the given cell.
+        """
+        return self.calculate_vault_probabilities().get(cell, 0.0)
+
     # -------------------------------------------------------------------------
     # Additional Helper Methods
     # -------------------------------------------------------------------------
@@ -752,9 +707,7 @@ class GringottsController:
                 # Only infer ~Vault and ~Trap if no observations contradict
                 if self.Vault_beliefs.get(neighbor, None) is not True:
                     if (r, c) not in self.visited:
-                        # To prevent over-aggressive inference, check if it's safe to infer
-                        # Here, we could use multiple inferences or confidence levels
-                        # For simplicity, we will skip inferring ~Vault and ~Trap
+                        # To prevent over-aggressive inference, skip inferring ~Vault
                         pass
                         # Example:
                         # self.kb.tell(~self.vault_symbols[neighbor])
