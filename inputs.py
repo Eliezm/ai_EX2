@@ -48,23 +48,23 @@ easy_inputs = [
     #         [0, 1, 0]
     #     ]
     # }
-    # {
-    #     'Harry_start': (0, 0),
-    #     'full_map': [
-    #         [0, 0, 0],
-    #         [0, 1, 0],
-    #         [0, 0, 7]
-    #     ]
-    # }
     {
         'Harry_start': (0, 0),
         'full_map': [
-            [0, 0, 0, 0],
-            [0, 0, 1, 3],
-            [0, 6, 2, 4],
-            [0, 0, 5, 0]
+            [0, 0, 0],
+            [0, 1, 0],
+            [0, 0, 7]
         ]
     }
+    # {
+    #     'Harry_start': (0, 0),
+    #     'full_map': [
+    #         [0, 0, 0, 0],
+    #         [0, 0, 1, 3],
+    #         [0, 6, 2, 4],
+    #         [0, 0, 5, 0]
+    #     ]
+    # }
     # { # this shit is not solveable, because dragons block the way to the vault...
     #     'Harry_start': (1, 1),
     #     'full_map': [
